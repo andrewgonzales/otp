@@ -1,22 +1,62 @@
 use hmac::{Hmac, Mac};
 use sha1::Sha1;
+use std::fmt::Debug;
+use std::io::{Error, ErrorKind};
 
 // HOTP https://datatracker.ietf.org/doc/html/rfc4226
 
 // counter-based
 // must support tokens without numeric input
-// HOTP value > 6 digits value
+// HOTP value >= 6 digits value
 // re-sync mechanism between client/generator and server/validator
 // strong shared secret > 128 bits (160 recommended)
 
 type HmacSha1 = Hmac<Sha1>;
 
+#[derive(Debug)]
+struct HOTP<'a> {
+    secret: &'a str,
+    counter: i32,
+}
+
+impl HOTP<'_> {
+    fn new(secret: &'static str) -> Self {
+        HOTP { secret, counter: 0 }
+    }
+}
+
 fn main() {
     let secret = "abc";
-    let counter = 2;
+    let counter = 0;
 
-    let hotp = truncate(make_hmac(secret.as_bytes(), counter));
-    println!("hotp: {}", hotp);
+    let mut hotp = HOTP::new(secret);
+    println!("hotp: {:?}", hotp);
+    let otp = get_hotp(secret, counter);
+    println!("otp: {}", otp);
+	let is_valid = validate_hotp(&mut hotp, 974315);
+	println!("is valid: {:?}", is_valid);
+	let is_valid2 = validate_hotp(&mut hotp, 974315);
+	println!("is valid 2: {:?}", is_valid2);
+}
+
+fn get_hotp(secret: &str, counter: i32) -> u32 {
+    let hmac = make_hmac(secret.as_bytes(), counter);
+    truncate(hmac)
+}
+
+fn validate_hotp(hotp: &mut HOTP, code: u32) -> Result<u32, Error> {
+    let expected_code = get_hotp(hotp.secret, hotp.counter);
+	println!("expected: {}", expected_code);
+	println!("entered: {}, {}", code, code == expected_code);
+    let result = match code {
+        n if n == expected_code => {
+			hotp.counter += 1;
+			Ok(code)
+		},
+        _ => Err(Error::new(ErrorKind::PermissionDenied, "Code didn't match")),
+    };
+
+    result
 }
 
 // HMAC_SHA-1 -> 20 byte string
@@ -33,9 +73,9 @@ fn make_hmac(secret: &[u8], counter: i32) -> Vec<u8> {
 // then s to num mod 10^Digit
 fn truncate(hmac: Vec<u8>) -> u32 {
     println!("hmac: {:?}", hmac);
-    let dynamic_truncation = dynamic_truncation(hmac);
+    let base_code = dynamic_truncation(hmac);
 
-    dynamic_truncation % u32::pow(10, 6)
+    base_code % u32::pow(10, 6)
 }
 
 // DT(String) // String = String[0]...String[19]
