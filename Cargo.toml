@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 hmac = "0.12.1"
 sha1 = "0.10.1"
+rand = "*"
+hex = "0.4.3"

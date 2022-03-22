@@ -1,7 +1,12 @@
+extern crate rand;
+extern crate hex;
+
 use hmac::{Hmac, Mac};
+use rand::RngCore;
 use sha1::Sha1;
 use std::fmt::Debug;
 use std::io::{Error, ErrorKind};
+use rand::rngs::OsRng;
 
 // HOTP https://datatracker.ietf.org/doc/html/rfc4226
 
@@ -37,6 +42,7 @@ fn main() {
 	println!("is valid: {:?}", is_valid);
 	let is_valid2 = validate_hotp(&mut hotp, 974315);
 	println!("is valid 2: {:?}", is_valid2);
+	let new_secret = generate_secret();
 }
 
 fn get_hotp(secret: &str, counter: i32) -> u32 {
@@ -96,4 +102,15 @@ fn dynamic_truncation(hmac: Vec<u8>) -> u32 {
         | (hmac[offset + 2] as u32 & 0xff) << 8
         | (hmac[offset + 3] as u32 & 0xff);
     code
+}
+
+// Generate a 20 byte random hex string
+fn generate_secret() -> String {
+	let mut key = [0u8; 20];
+	OsRng.fill_bytes(&mut key);
+	println!("key {:?}", key);
+	let hex_value = hex::encode_upper(&key);
+	println!("hex {}", hex_value);
+	println!("length {}", hex_value.len());
+	hex_value
 }
