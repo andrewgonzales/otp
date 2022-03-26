@@ -10,3 +10,10 @@ hmac = "0.12.1"
 sha1 = "0.10.1"
 rand = "*"
 data-encoding = "2.3.2"
+clap = { version = "3.1.6", features = ["cargo", "derive"] }
+toml = "0.5.8"
+serde = { version = "1.0.136", features = ["derive"] }
+
+[[bin]]
+path = "src/main.rs"
+name = "otp"
