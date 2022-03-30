@@ -25,30 +25,32 @@ mod account;
 type HmacSha1 = Hmac<Sha1>;
 
 fn main() {
-	let account_store = AccountStore::new().expect("Unable to initialize store");
+    let account_store = AccountStore::new().expect("Unable to initialize store");
     let cmd = command!("otp")
         .about("HOTP client and server methods")
         .version("v0.1.0")
         .bin_name("otp")
         .subcommand_required(true)
-        .subcommand(command!("server").arg(
-            arg!(-g --generate ... "Generates a 20 byte random base32 secret key").required(false),
-        ))
-        .subcommand(command!("client").args(&[
-            arg!(-a --account <NAME> "Account name to create").required(true),
-            arg!(-k --key <KEY> "Secret key").required(true).validator(is_base32_key),
-        ]));
+        .subcommand(command!("generateKey"))
+        .subcommand(
+            command!("add").args(&[
+                arg!(-a --account <NAME> "Account name to create").required(true),
+                arg!(-k --key <KEY> "Secret key")
+                    .required(true)
+                    .validator(is_base32_key),
+            ]),
+        );
     let matches = cmd.get_matches();
     match matches.subcommand() {
-        Some(("server", server_args)) => run_server(server_args),
-        Some(("client", client_args)) => run_client(client_args, account_store),
+        Some(("generateKey", _)) => run_generate(),
+        Some(("add", add_args)) => run_add(add_args, account_store),
         _ => unreachable!("No commands were supplied!"),
     };
 
     // let secret = "abc";
     // let counter = 0;
 
-    // let mut hotp = HOTP::new(secret);
+    // let mut hotp = Account::new(String::from(secret));
     // println!("hotp: {:?}", hotp);
     // let otp = get_hotp(secret, counter);
     // println!("otp: {}", otp);
@@ -60,25 +62,22 @@ fn main() {
     // println!("new_secret = {:?}", new_secret);
 }
 
-fn run_server(server_args: &ArgMatches) {
-    if server_args.is_present("generate") {
-        let new_secret_key = generate_secret();
-        println!("new secret key = {:?}", new_secret_key);
-    }
+fn run_generate() {
+    let new_secret_key = generate_secret();
+    println!("{}", new_secret_key);
 }
 
-fn run_client(client_args: &ArgMatches, mut account_store: AccountStore) {
-	println!("account_store = {:?}", account_store.list());
+fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
+    println!("account_store = {:?}", account_store.list());
 
-    let account_name = client_args.value_of("account").unwrap();
-    let key = client_args.value_of("key").unwrap();
+    let account_name = add_args.value_of("account").unwrap();
+    let key = add_args.value_of("key").unwrap();
 
     println!("account = {:?}", account_name);
     println!("key = {:?}", key);
 
-
-	let account = Account::new(String::from(key));
-	println!("account = {:?}", account);
+    let account = Account::new(String::from(key));
+    println!("account = {:?}", account);
 
     if account_store.get(account_name).is_some() {
         println!("Account already exists");
@@ -106,10 +105,10 @@ fn get_hotp(secret: &str, counter: i32) -> u32 {
 }
 
 fn validate_hotp(account: &mut Account, code: u32) -> Result<u32, Error> {
-	let counter = match account.counter {
-		Some(value) => value,
-		None => 0,
-	};
+    let counter = match account.counter {
+        Some(value) => value,
+        None => 0,
+    };
     let expected_code = get_hotp(&account.key, counter);
     println!("expected: {}", expected_code);
     println!("entered: {}, {}", code, code == expected_code);
