@@ -31,7 +31,7 @@ fn main() {
         .version("v0.1.0")
         .bin_name("otp")
         .subcommand_required(true)
-        .subcommand(command!("generateKey"))
+        .subcommand(command!("generate"))
         .subcommand(
             command!("add").args(&[
                 arg!(-a --account <NAME> "Account name to create").required(true),
@@ -39,11 +39,15 @@ fn main() {
                     .required(true)
                     .validator(is_base32_key),
             ]),
-        );
+        )
+        .subcommand(command!("get").args(&[
+            arg!(-a --account <NAME> "Account name to get one-time password for").required(true),
+        ]));
     let matches = cmd.get_matches();
     match matches.subcommand() {
-        Some(("generateKey", _)) => run_generate(),
+        Some(("generate", _)) => run_generate(),
         Some(("add", add_args)) => run_add(add_args, account_store),
+        Some(("get", get_args)) => run_get(get_args, account_store),
         _ => unreachable!("No commands were supplied!"),
     };
 
@@ -76,18 +80,41 @@ fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
     println!("account = {:?}", account_name);
     println!("key = {:?}", key);
 
-    let account = Account::new(String::from(key));
-    println!("account = {:?}", account);
-
     if account_store.get(account_name).is_some() {
         println!("Account already exists");
     } else {
+        let account = Account::new(String::from(key));
+        println!("account = {:?}", account);
         account_store.add(account_name.to_string(), account);
         match account_store.save() {
             Ok(_) => println!("Account successfully created"),
             Err(err) => eprintln!("{}", err),
         }
     }
+}
+
+fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
+    let account_name = get_args.value_of("account").unwrap();
+
+    let account = account_store.get(account_name);
+
+	match account {
+		None => println!("Account not found: {}", account_name),
+		Some(account) => {
+			let otp = get_hotp(&account.key, account.counter.unwrap_or_else(||0));
+
+			let updated_account = Account {
+				key: account.key.clone(),
+				counter: Some(account.counter.unwrap() + 1),
+			};
+			account_store.add(account_name.to_string(), updated_account);
+			match account_store.save() {
+				Ok(_) => println!("{}", otp),
+				Err(err) => eprintln!("Unable to save account: {}", err),
+			}
+
+		}
+	}
 }
 
 // Validate key provided in arguments is a valid base32 encoding
@@ -136,7 +163,6 @@ fn make_hmac(secret: &[u8], counter: i32) -> Vec<u8> {
 // reduce to 4 byte string
 // then s to num mod 10^Digit
 fn truncate(hmac: Vec<u8>) -> u32 {
-    println!("hmac: {:?}", hmac);
     let base_code = dynamic_truncation(hmac);
 
     base_code % u32::pow(10, 6)
