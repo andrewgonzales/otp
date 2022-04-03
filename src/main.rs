@@ -139,7 +139,7 @@ fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
             match result {
                 Err(err) => eprintln!("{}", err),
                 Ok((new_counter, valid_code)) => {
-                    println!("{}", valid_code);
+                    println!("{} valid", valid_code);
                     let updated_account = Account {
                         key: account.key.clone(),
                         counter: Some(new_counter + 1),
@@ -178,19 +178,15 @@ fn validate_hotp(account: &Account, code: u32) -> Result<(i32, u32), Error> {
 
     println!("entered: {}", code);
 
-    let test_codes: Vec<(i32, u32)> = (counter..counter + window_size)
-        .map(|i| (i, get_hotp(&account.key, i)))
-        .collect();
-    println!("test_codes: {:?}", test_codes);
+    for i in counter..counter + window_size {
+        let test_code = get_hotp(&account.key, i);
+        println!("Trying {}", test_code);
+        if test_code == code {
+            return Ok((i, test_code));
+        }
+    }
 
-    let found = test_codes.iter().find(|&&c| c.1 == code);
-    println!("found = {:?}", found);
-    let result = match found {
-        Some((new_counter, matching_code)) => Ok((*new_counter, *matching_code)),
-        None => Err(Error::new(ErrorKind::InvalidInput, "Invalid code")),
-    };
-
-    result
+    Err(Error::new(ErrorKind::Other, "Invalid code"))
 }
 
 // HMAC_SHA-1 -> 20 byte string
