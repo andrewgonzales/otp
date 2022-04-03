@@ -138,11 +138,11 @@ fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
             let result = validate_hotp(&account, parsed_token);
             match result {
                 Err(err) => eprintln!("{}", err),
-                Ok(valid) => {
-                    println!("{}", valid);
+                Ok((new_counter, valid_code)) => {
+                    println!("{}", valid_code);
                     let updated_account = Account {
                         key: account.key.clone(),
-                        counter: Some(account.counter.unwrap() + 1),
+                        counter: Some(new_counter + 1),
                     };
                     account_store.add(account_name.to_string(), updated_account);
                     match account_store.save() {
@@ -169,17 +169,25 @@ fn get_hotp(secret: &str, counter: i32) -> u32 {
     truncate(hmac)
 }
 
-fn validate_hotp(account: &Account, code: u32) -> Result<u32, Error> {
+fn validate_hotp(account: &Account, code: u32) -> Result<(i32, u32), Error> {
+    let window_size = 10;
     let counter = match account.counter {
         Some(value) => value,
         None => 0,
     };
-    let expected_code = get_hotp(&account.key, counter - 1);
-    println!("expected: {}", expected_code);
-    println!("entered: {}, {}", code, code == expected_code);
-    let result = match code {
-        n if n == expected_code => Ok(code),
-        _ => Err(Error::new(ErrorKind::PermissionDenied, "Code didn't match")),
+
+    println!("entered: {}", code);
+
+    let test_codes: Vec<(i32, u32)> = (counter..counter + window_size)
+        .map(|i| (i, get_hotp(&account.key, i)))
+        .collect();
+    println!("test_codes: {:?}", test_codes);
+
+    let found = test_codes.iter().find(|&&c| c.1 == code);
+    println!("found = {:?}", found);
+    let result = match found {
+        Some((new_counter, matching_code)) => Ok((*new_counter, *matching_code)),
+        None => Err(Error::new(ErrorKind::InvalidInput, "Invalid code")),
     };
 
     result
