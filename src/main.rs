@@ -42,12 +42,21 @@ fn main() {
         )
         .subcommand(command!("get").args(&[
             arg!(-a --account <NAME> "Account name to get one-time password for").required(true),
-        ]));
+        ]))
+        .subcommand(
+            command!("validate").args(&[
+                arg!(-a --account <NAME> "Account name to validate one-time password for")
+                    .required(true),
+                arg!(-t --token <TOKEN> "One-time password to validate").required(true),
+            ]),
+        );
+
     let matches = cmd.get_matches();
     match matches.subcommand() {
         Some(("generate", _)) => run_generate(),
         Some(("add", add_args)) => run_add(add_args, account_store),
         Some(("get", get_args)) => run_get(get_args, account_store),
+        Some(("validate", validate_args)) => run_validate(validate_args, account_store),
         _ => unreachable!("No commands were supplied!"),
     };
 
@@ -98,23 +107,52 @@ fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
 
     let account = account_store.get(account_name);
 
-	match account {
-		None => println!("Account not found: {}", account_name),
-		Some(account) => {
-			let otp = get_hotp(&account.key, account.counter.unwrap_or_else(||0));
+    match account {
+        None => println!("Account not found: {}", account_name),
+        Some(account) => {
+            let otp = get_hotp(&account.key, account.counter.unwrap_or_else(|| 0));
 
-			let updated_account = Account {
-				key: account.key.clone(),
-				counter: Some(account.counter.unwrap() + 1),
-			};
-			account_store.add(account_name.to_string(), updated_account);
-			match account_store.save() {
-				Ok(_) => println!("{}", otp),
-				Err(err) => eprintln!("Unable to save account: {}", err),
-			}
+            let updated_account = Account {
+                key: account.key.clone(),
+                counter: Some(account.counter.unwrap() + 1),
+            };
+            account_store.add(account_name.to_string(), updated_account);
+            match account_store.save() {
+                Ok(_) => println!("{}", otp),
+                Err(err) => eprintln!("Unable to save account: {}", err),
+            }
+        }
+    }
+}
 
-		}
-	}
+fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
+    let account_name = validate_args.value_of("account").unwrap();
+    let token = validate_args.value_of("token").unwrap();
+
+    let account = account_store.get(account_name);
+
+    match account {
+        None => println!("Account not found: {}", account_name),
+        Some(account) => {
+            let parsed_token = token.parse::<u32>().unwrap();
+            let result = validate_hotp(&account, parsed_token);
+            match result {
+                Err(err) => eprintln!("{}", err),
+                Ok(valid) => {
+                    println!("{}", valid);
+                    let updated_account = Account {
+                        key: account.key.clone(),
+                        counter: Some(account.counter.unwrap() + 1),
+                    };
+                    account_store.add(account_name.to_string(), updated_account);
+                    match account_store.save() {
+                        Ok(_) => println!("Success!"),
+                        Err(err) => eprintln!("Unable to save account: {}", err),
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Validate key provided in arguments is a valid base32 encoding
@@ -131,19 +169,16 @@ fn get_hotp(secret: &str, counter: i32) -> u32 {
     truncate(hmac)
 }
 
-fn validate_hotp(account: &mut Account, code: u32) -> Result<u32, Error> {
+fn validate_hotp(account: &Account, code: u32) -> Result<u32, Error> {
     let counter = match account.counter {
         Some(value) => value,
         None => 0,
     };
-    let expected_code = get_hotp(&account.key, counter);
+    let expected_code = get_hotp(&account.key, counter - 1);
     println!("expected: {}", expected_code);
     println!("entered: {}, {}", code, code == expected_code);
     let result = match code {
-        n if n == expected_code => {
-            account.counter = Some(counter + 1);
-            Ok(code)
-        }
+        n if n == expected_code => Ok(code),
         _ => Err(Error::new(ErrorKind::PermissionDenied, "Code didn't match")),
     };
 
