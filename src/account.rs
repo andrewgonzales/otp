@@ -1,12 +1,12 @@
 extern crate toml;
 
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::io::Result;
 use std::fs;
 use std::fs::File;
-use std::io::BufReader;
 use std::io::prelude::*;
-use serde::{Serialize, Deserialize};
+use std::io::BufReader;
+use std::io::Result;
 
 const FILE_PATH: &str = "src/data/accounts.txt";
 
@@ -18,7 +18,10 @@ pub struct Account {
 
 impl Account {
     pub fn new(key: String) -> Self {
-        Account { key, counter: Some(0) }
+        Account {
+            key,
+            counter: Some(0),
+        }
     }
 }
 
@@ -28,10 +31,10 @@ pub struct AccountStore {
 
 impl AccountStore {
     pub fn new() -> Result<AccountStore> {
-		let file = File::open(FILE_PATH)?;
-		let mut buf_reader = BufReader::new(file);
-		let mut accounts_str = String::new();
-		buf_reader.read_to_string(&mut accounts_str)?;
+        let file = File::open(FILE_PATH)?;
+        let mut buf_reader = BufReader::new(file);
+        let mut accounts_str = String::new();
+        buf_reader.read_to_string(&mut accounts_str)?;
         let accounts: BTreeMap<String, Account> = toml::from_str(&accounts_str)?;
         Ok(AccountStore { accounts })
     }
@@ -56,5 +59,13 @@ impl AccountStore {
         let accounts_str = toml::to_string(&self.accounts).expect("Serialization failure");
         fs::write(FILE_PATH, accounts_str)?;
         Ok(())
+    }
+
+    pub fn set_counter(&mut self, account_name: &str, counter: i32) {
+        let account = self.accounts.get_mut(account_name);
+        match account {
+            Some(account) => account.counter = Some(counter),
+            None => println!("Account not found: {}", account_name),
+        }
     }
 }

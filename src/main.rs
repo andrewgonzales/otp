@@ -110,13 +110,10 @@ fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
     match account {
         None => println!("Account not found: {}", account_name),
         Some(account) => {
-            let otp = get_hotp(&account.key, account.counter.unwrap_or_else(|| 0));
+            let counter = account.counter.unwrap_or_else(|| 0);
+            let otp = get_hotp(&account.key, counter);
 
-            let updated_account = Account {
-                key: account.key.clone(),
-                counter: Some(account.counter.unwrap() + 1),
-            };
-            account_store.add(account_name.to_string(), updated_account);
+            account_store.set_counter(account_name, counter + 1);
             match account_store.save() {
                 Ok(_) => println!("{}", otp),
                 Err(err) => eprintln!("Unable to save account: {}", err),
@@ -137,19 +134,16 @@ fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
             let parsed_token = token.parse::<u32>().unwrap();
             let result = validate_hotp(&account, parsed_token);
             match result {
-                Err(err) => eprintln!("{}", err),
                 Ok((new_counter, valid_code)) => {
                     println!("{} valid", valid_code);
-                    let updated_account = Account {
-                        key: account.key.clone(),
-                        counter: Some(new_counter + 1),
-                    };
-                    account_store.add(account_name.to_string(), updated_account);
+                    account_store.set_counter(account_name, new_counter);
+
                     match account_store.save() {
                         Ok(_) => println!("Success!"),
                         Err(err) => eprintln!("Unable to save account: {}", err),
                     }
                 }
+                Err(err) => eprintln!("{}", err),
             }
         }
     }
