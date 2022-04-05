@@ -115,7 +115,7 @@ fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
 
             account_store.set_counter(account_name, counter + 1);
             match account_store.save() {
-                Ok(_) => println!("{}", otp),
+                Ok(_) => println!("{}", format!("{:0>6}", otp)),
                 Err(err) => eprintln!("Unable to save account: {}", err),
             }
         }
