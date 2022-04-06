@@ -40,6 +40,11 @@ fn main() {
                     .validator(is_base32_key),
             ]),
         )
+        .subcommand(
+            command!("delete")
+                .args(&[arg!(-a --account <NAME> "Account name to delete").required(true)]),
+        )
+        .subcommand(command!("list"))
         .subcommand(command!("get").args(&[
             arg!(-a --account <NAME> "Account name to get one-time password for").required(true),
         ]))
@@ -55,24 +60,12 @@ fn main() {
     match matches.subcommand() {
         Some(("generate", _)) => run_generate(),
         Some(("add", add_args)) => run_add(add_args, account_store),
+        Some(("delete", delete_args)) => run_delete(delete_args, account_store),
+        Some(("list", _)) => run_list(account_store),
         Some(("get", get_args)) => run_get(get_args, account_store),
         Some(("validate", validate_args)) => run_validate(validate_args, account_store),
         _ => unreachable!("No commands were supplied!"),
     };
-
-    // let secret = "abc";
-    // let counter = 0;
-
-    // let mut hotp = Account::new(String::from(secret));
-    // println!("hotp: {:?}", hotp);
-    // let otp = get_hotp(secret, counter);
-    // println!("otp: {}", otp);
-    // let is_valid = validate_hotp(&mut hotp, 974315);
-    // println!("is valid: {:?}", is_valid);
-    // let is_valid2 = validate_hotp(&mut hotp, 974315);
-    // println!("is valid 2: {:?}", is_valid2);
-    // let new_secret = generate_secret();
-    // println!("new_secret = {:?}", new_secret);
 }
 
 fn run_generate() {
@@ -81,8 +74,6 @@ fn run_generate() {
 }
 
 fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
-    println!("account_store = {:?}", account_store.list());
-
     let account_name = add_args.value_of("account").unwrap();
     let key = add_args.value_of("key").unwrap();
 
@@ -100,6 +91,24 @@ fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
             Err(err) => eprintln!("{}", err),
         }
     }
+}
+
+fn run_delete(delete_args: &ArgMatches, mut account_store: AccountStore) {
+    let account_name = delete_args.value_of("account").unwrap();
+
+    let result = account_store.delete(account_name);
+
+    match result {
+        Some(_) => match account_store.save() {
+            Ok(_) => println!("Account successfully deleted"),
+            Err(err) => eprintln!("{}", err),
+        },
+        None => eprintln!("Account not found: {}", account_name),
+    }
+}
+
+fn run_list(account_store: AccountStore) {
+    println!("account_store = {:?}", account_store.list());
 }
 
 fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
