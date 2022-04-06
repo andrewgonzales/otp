@@ -16,4 +16,4 @@ serde = { version = "1.0.136", features = ["derive"] }
 
 [[bin]]
 path = "src/main.rs"
-name = "otp"
+name = "hotp"

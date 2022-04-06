@@ -26,14 +26,13 @@ type HmacSha1 = Hmac<Sha1>;
 
 fn main() {
     let account_store = AccountStore::new().expect("Unable to initialize store");
-    let cmd = command!("otp")
+    let cmd = command!("hotp")
         .about("HOTP client and server methods")
         .version("v0.1.0")
-        .bin_name("otp")
         .subcommand_required(true)
-        .subcommand(command!("generate"))
+        .subcommand(command!("generate").about("Generate a Base32 secret key"))
         .subcommand(
-            command!("add").args(&[
+            command!("add").about("Add an account").args(&[
                 arg!(-a --account <NAME> "Account name to create").required(true),
                 arg!(-k --key <KEY> "Secret key")
                     .required(true)
@@ -42,18 +41,21 @@ fn main() {
         )
         .subcommand(
             command!("delete")
+                .about("Delete an account")
                 .args(&[arg!(-a --account <NAME> "Account name to delete").required(true)]),
         )
-        .subcommand(command!("list"))
-        .subcommand(command!("get").args(&[
+        .subcommand(command!("list").about("List all accounts"))
+        .subcommand(command!("get").about("Get a one-time password").args(&[
             arg!(-a --account <NAME> "Account name to get one-time password for").required(true),
         ]))
         .subcommand(
-            command!("validate").args(&[
-                arg!(-a --account <NAME> "Account name to validate one-time password for")
-                    .required(true),
-                arg!(-t --token <TOKEN> "One-time password to validate").required(true),
-            ]),
+            command!("validate")
+                .about("Validate a one-time password")
+                .args(&[
+                    arg!(-a --account <NAME> "Account name to validate one-time password for")
+                        .required(true),
+                    arg!(-t --token <TOKEN> "One-time password to validate").required(true),
+                ]),
         );
 
     let matches = cmd.get_matches();
