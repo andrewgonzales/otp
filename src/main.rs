@@ -79,17 +79,13 @@ fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
     let account_name = add_args.value_of("account").unwrap();
     let key = add_args.value_of("key").unwrap();
 
-    println!("account = {:?}", account_name);
-    println!("key = {:?}", key);
-
     if account_store.get(account_name).is_some() {
         println!("Account already exists");
     } else {
         let account = Account::new(String::from(key));
-        println!("account = {:?}", account);
         account_store.add(account_name.to_string(), account);
         match account_store.save() {
-            Ok(_) => println!("Account successfully created"),
+            Ok(_) => println!("Account \"{}\" successfully created", account_name),
             Err(err) => eprintln!("{}", err),
         }
     }
@@ -110,7 +106,10 @@ fn run_delete(delete_args: &ArgMatches, mut account_store: AccountStore) {
 }
 
 fn run_list(account_store: AccountStore) {
-    println!("account_store = {:?}", account_store.list());
+	println!("Accounts:");
+	for name in account_store.list() {
+		println!("{}", name);
+	}
 }
 
 fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
