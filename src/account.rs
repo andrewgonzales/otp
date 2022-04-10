@@ -1,6 +1,3 @@
-extern crate dirs;
-extern crate toml;
-
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
@@ -9,14 +6,14 @@ use std::io::prelude::*;
 use std::io::{BufReader, Result};
 use std::path::PathBuf;
 
-const FILE_PATH: &str = "accounts.txt";
+const FILE_NAME: &str = "accounts.txt";
 
 fn get_path() -> Result<PathBuf> {
     let home = dirs::home_dir().expect("Unable to find home directory");
     let directory = home.join(".otp");
     fs::create_dir_all(&directory).expect("Unable to create .otp directory");
 
-    Ok([directory, PathBuf::from(FILE_PATH)].iter().collect())
+    Ok([directory, PathBuf::from(FILE_NAME)].iter().collect())
 }
 
 #[derive(Debug, Deserialize, Serialize)]
