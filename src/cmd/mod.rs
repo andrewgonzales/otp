@@ -2,10 +2,12 @@ pub mod add;
 pub mod delete;
 pub mod generate;
 pub mod get;
+pub mod init;
 pub mod list;
 pub mod validate;
 
 pub enum CommandType {
+    Init,
     Generate,
     Add,
     Delete,
@@ -17,6 +19,7 @@ pub enum CommandType {
 impl CommandType {
     pub fn as_str(&self) -> &str {
         match self {
+            CommandType::Init => "init",
             CommandType::Generate => "generate",
             CommandType::Add => "add",
             CommandType::Delete => "delete",
