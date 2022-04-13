@@ -1,6 +1,7 @@
-use clap::{arg, command};
+use clap::command;
+use std::io;
 
-use crate::account::AccountStore;
+use crate::{account::AccountStore, utils::validate_pin};
 
 mod account;
 mod cmd;
@@ -27,16 +28,37 @@ fn main() {
         .subcommand(cmd::delete::subcommand())
         .subcommand(cmd::list::subcommand())
         .subcommand(cmd::get::subcommand())
-        .subcommand(cmd::validate::subcommand())
-        .args(&[arg!(-p --pin <PIN> "4-6 character secret pin")
-            .required(true)
-            .validator(utils::validate_pin)]);
+        .subcommand(cmd::validate::subcommand());
+
+    loop {
+        println!("Enter pin");
+
+        let mut pin = String::new();
+        io::stdin()
+            .read_line(&mut pin)
+            .expect("Failed to read line");
+
+        match pin.trim() {
+            code if validate_pin(code).is_ok() => {
+                println!("code = {:?}", code);
+                if !account_store.is_initialized() {
+                    println!("No stored pin found. Run init command.");
+                }
+
+                if account_store.validate_pin(code) {
+                    break;
+                } else {
+                    println!("Invalid pin");
+                }
+            }
+            _ => {
+                println!("Invalid pin length");
+                continue;
+            }
+        };
+    }
 
     let matches = cmd.get_matches();
-    let pin = matches.value_of("pin").expect("No pin entererd");
-    if account_store.is_initialized() && !account_store.validate_pin(pin) {
-        return eprintln!("Invalid pin");
-    }
     match matches.subcommand() {
         Some(("init", init_args)) => cmd::init::run_init(init_args, account_store),
         Some(("generate", _)) => cmd::generate::run_generate(),
