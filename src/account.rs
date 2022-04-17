@@ -1,18 +1,17 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::fs;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::prelude::*;
 use std::io::{BufReader, Result};
 use std::path::PathBuf;
 
-use crate::utils::decrypt_pw;
+use crate::utils::{decrypt_pw, decrypt_string, encrypt_string};
 
 const FILE_NAME: &str = "accounts.txt";
-
+const SECRETS_FILE_NAME: &str = "secrets.txt";
 enum FileType {
     Accounts,
-    Init,
+    Secrets,
 }
 
 fn get_path(file_type: FileType) -> Result<PathBuf> {
@@ -22,7 +21,7 @@ fn get_path(file_type: FileType) -> Result<PathBuf> {
 
     let filename = match file_type {
         FileType::Accounts => FILE_NAME,
-        FileType::Init => "init.txt",
+        FileType::Secrets => SECRETS_FILE_NAME,
     };
 
     Ok([directory, PathBuf::from(filename)].iter().collect())
@@ -37,6 +36,20 @@ fn load_file_to_string(path: &PathBuf) -> Result<String> {
     let mut buf_reader = BufReader::new(file);
     let mut contents = String::new();
     buf_reader.read_to_string(&mut contents)?;
+
+    Ok(contents)
+}
+
+pub fn load_file_to_vec(path: &PathBuf) -> Result<Vec<u8>> {
+    if !path.exists() {
+        File::create(&path)?;
+    }
+
+    let file = File::open(path)?;
+    let mut buf_reader = BufReader::new(file);
+    let mut contents: Vec<u8> = Vec::new();
+    buf_reader.read_to_end(&mut contents)?;
+
     Ok(contents)
 }
 
@@ -55,28 +68,50 @@ impl Account {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Secrets {
+    pub pin: Option<String>,
+    pub salt: Option<Vec<u8>>,
+    pub nonce: Option<Vec<u8>>,
+}
+
 pub struct AccountStore {
     accounts: BTreeMap<String, Account>,
-    pin: Option<String>,
+    secrets: Secrets,
 }
 
 impl AccountStore {
     pub fn new() -> Result<AccountStore> {
+        // Load secrets
+        let secrets_path = get_path(FileType::Secrets)?;
+        let secrets_content = load_file_to_string(&secrets_path)?;
+        let secrets: Secrets = toml::from_str(&secrets_content)?;
+
         // Load Accounts
         let account_path = get_path(FileType::Accounts)?;
-        let account_contents = load_file_to_string(&account_path)?;
-        let accounts: BTreeMap<String, Account> = toml::from_str(&account_contents)?;
 
-        // Load pin
-        let pin_path = get_path(FileType::Init)?;
-        let pin_contents = load_file_to_string(&pin_path)?;
-        let pin: Option<String> = if pin_contents.is_empty() {
-            None
-        } else {
-            Some(pin_contents)
+        let attempt = load_file_to_vec(&account_path);
+        let encrypted_account_contents = match attempt {
+            Ok(contents) => contents,
+            Err(err) => {
+                println!("oh no! {}", err);
+                Vec::new()
+            }
         };
 
-        Ok(AccountStore { accounts, pin })
+        let account_contents = match encrypted_account_contents {
+            contents if contents.is_empty() => String::from_utf8(contents).unwrap(),
+            encrypted_contents => {
+                let salt = secrets.salt.clone().unwrap();
+                let nonce = secrets.nonce.clone().unwrap();
+                let content = decrypt_string(&encrypted_contents, &salt, &nonce).unwrap();
+                content
+            }
+        };
+
+        let accounts: BTreeMap<String, Account> = toml::from_str(&account_contents)?;
+
+        Ok(AccountStore { accounts, secrets })
     }
 
     pub fn get(&self, account_name: &str) -> Option<&Account> {
@@ -96,13 +131,30 @@ impl AccountStore {
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.pin.is_some()
+        self.secrets.pin.is_some()
     }
 
     pub fn save(&self) -> Result<()> {
-        let accounts_str = toml::to_string(&self.accounts).expect("Serialization failure");
+        let account_contents = toml::to_string(&self.accounts).expect("Serialization failure");
+        let (encrypted_content, salt, nonce) = encrypt_string(&account_contents).unwrap();
+
         let path = get_path(FileType::Accounts)?;
-        fs::write(path, accounts_str)?;
+        fs::write(path, encrypted_content)?;
+
+        let secrets_path = get_path(FileType::Secrets)?;
+        if !secrets_path.exists() {
+            File::create(&secrets_path)?;
+        }
+
+        let secrets = Secrets {
+            pin: self.secrets.pin.clone(),
+            salt: Some(salt),
+            nonce: Some(nonce),
+        };
+
+        let secrets_content = toml::to_string(&secrets).expect("Serialization failure");
+        fs::write(secrets_path, secrets_content)?;
+
         Ok(())
     }
 
@@ -114,18 +166,26 @@ impl AccountStore {
         }
     }
 
-    pub fn set_pin(&mut self, pin: &str) -> Result<()> {
-        self.pin = Some(String::from(pin));
-        let path = get_path(FileType::Init)?;
-        if !path.exists() {
-            File::create(&path)?;
+    pub fn set_secrets(&mut self, pin: &str) -> Result<()> {
+        self.secrets = Secrets {
+            pin: Some(String::from(pin)),
+            salt: None,
+            nonce: None,
+        };
+
+        let secrets_contents = toml::to_string(&self.secrets).expect("Serialization failure");
+
+        let secrets_path = get_path(FileType::Secrets)?;
+        if !secrets_path.exists() {
+            File::create(&secrets_path)?;
         }
-        fs::write(path, pin)?;
+        fs::write(secrets_path, &secrets_contents)?;
+
         Ok(())
     }
 
     pub fn validate_pin(&self, pin: &str) -> bool {
-        let stored_pin = self.pin.clone().unwrap();
+        let stored_pin = self.secrets.pin.clone().unwrap();
         let matches = decrypt_pw(&stored_pin, pin);
         matches
     }

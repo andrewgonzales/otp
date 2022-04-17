@@ -15,7 +15,7 @@ pub fn run_init(init_args: &ArgMatches, mut account_store: AccountStore) {
 
     let encrypted_pin = encrypt_pw(pin);
 
-    match account_store.set_pin(&encrypted_pin) {
+    match account_store.set_secrets(&encrypted_pin) {
         Ok(_) => println!("Client successfully initialized"),
         Err(err) => eprintln!("{}", err),
     }
