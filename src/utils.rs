@@ -53,21 +53,14 @@ pub fn validate_pin(pin: &str, account_store: &AccountStore) -> Result<(), Strin
     Ok(())
 }
 
-fn generate_encryption_key() -> [u8; 32] {
-    let mut key = [0u8; 32];
-    OsRng.fill_bytes(&mut key);
-    key
-}
-
 fn generate_nonce() -> [u8; 24] {
     let mut dest = [0u8; 24];
     OsRng.fill_bytes(&mut dest);
     dest
 }
 
-pub fn encrypt_string(text: &str) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String> {
-	let some_salt = generate_encryption_key();
-    let key = Key::from_slice(&some_salt); // 32-bytes
+pub fn encrypt_string(text: &str, salt: &Vec<u8>) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let key = Key::from_slice(&salt); // 32-bytes
     let aead = XChaCha20Poly1305::new(key);
 
     let nonce_seed = generate_nonce();
@@ -76,12 +69,12 @@ pub fn encrypt_string(text: &str) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String>
         .encrypt(nonce, text.as_bytes().as_ref())
         .expect("encryption failure!");
 
-    Ok((ciphertext, some_salt.to_vec(), nonce.to_vec()))
+    Ok((ciphertext, nonce.to_vec()))
 }
 
 pub fn decrypt_string(ciphertext: &Vec<u8>, salt: &Vec<u8>, nonce_seed: &Vec<u8>) -> Result<String, String> {
-    let nonce = XNonce::from_slice(nonce_seed);
-    let key = Key::from_slice(salt); // 32-bytes
+    let nonce = XNonce::from_slice(&nonce_seed);
+    let key = Key::from_slice(&salt); // 32-bytes
     let aead = XChaCha20Poly1305::new(key);
 
     let plaintext = aead

@@ -69,11 +69,24 @@ impl Account {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Secrets {
-    pub pin: Option<String>,
-    pub salt: Option<Vec<u8>>,
-    pub nonce: Option<Vec<u8>>,
+struct Secrets {
+    hash: Option<String>,
+    nonce: Option<Vec<u8>>,
 }
+
+impl Secrets {
+    fn get_salt(&self) -> Option<Vec<u8>> {
+		let salt = match &self.hash {
+			Some(hash) => {
+				let salt = hash.clone().into_bytes()[..32].to_vec();
+				Some(salt)
+			},
+			None => None,
+		};
+		salt
+	}
+}
+
 
 pub struct AccountStore {
     accounts: BTreeMap<String, Account>,
@@ -102,7 +115,7 @@ impl AccountStore {
         let account_contents = match encrypted_account_contents {
             contents if contents.is_empty() => String::from_utf8(contents).unwrap(),
             encrypted_contents => {
-                let salt = secrets.salt.clone().unwrap();
+				let salt = secrets.get_salt().unwrap();
                 let nonce = secrets.nonce.clone().unwrap();
                 let content = decrypt_string(&encrypted_contents, &salt, &nonce).unwrap();
                 content
@@ -131,12 +144,13 @@ impl AccountStore {
     }
 
     pub fn is_initialized(&self) -> bool {
-        self.secrets.pin.is_some()
+        self.secrets.hash.is_some()
     }
 
     pub fn save(&self) -> Result<()> {
         let account_contents = toml::to_string(&self.accounts).expect("Serialization failure");
-        let (encrypted_content, salt, nonce) = encrypt_string(&account_contents).unwrap();
+		let salt = self.secrets.get_salt().unwrap();
+        let (encrypted_content, nonce) = encrypt_string(&account_contents, &salt).unwrap();
 
         let path = get_path(FileType::Accounts)?;
         fs::write(path, encrypted_content)?;
@@ -147,8 +161,7 @@ impl AccountStore {
         }
 
         let secrets = Secrets {
-            pin: self.secrets.pin.clone(),
-            salt: Some(salt),
+            hash: self.secrets.hash.clone(),
             nonce: Some(nonce),
         };
 
@@ -166,10 +179,9 @@ impl AccountStore {
         }
     }
 
-    pub fn set_secrets(&mut self, pin: &str) -> Result<()> {
+    pub fn set_secrets(&mut self, hash: &str) -> Result<()> {
         self.secrets = Secrets {
-            pin: Some(String::from(pin)),
-            salt: None,
+            hash: Some(String::from(hash)),
             nonce: None,
         };
 
@@ -185,7 +197,7 @@ impl AccountStore {
     }
 
     pub fn validate_pin(&self, pin: &str) -> bool {
-        let stored_pin = self.secrets.pin.clone().unwrap();
+        let stored_pin = self.secrets.hash.clone().unwrap();
         let matches = decrypt_pw(&stored_pin, pin);
         matches
     }
