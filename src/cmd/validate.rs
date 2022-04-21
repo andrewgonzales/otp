@@ -15,15 +15,27 @@ pub fn subcommand() -> Command<'static> {
 }
 
 pub fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
-    let account_name = validate_args.value_of("account").unwrap();
-    let token = validate_args.value_of("token").unwrap();
+    let (account_name, token) = match (validate_args.value_of("account"), validate_args.value_of("token")) {
+		(Some(account_name), Some(token)) => (account_name, token),
+		_ => {
+			eprintln!("Account name and token are required");
+			return;
+		}
+	};
 
     let account = account_store.get(account_name);
 
     match account {
         None => println!("Account not found: {}", account_name),
         Some(account) => {
-            let parsed_token = token.parse::<u32>().unwrap();
+            let parsed_token = match token.parse::<u32>() {
+				Ok(parsed_token) => parsed_token,
+				Err(err) => {
+					eprintln!("Unable to parse token: {}", err);
+					return;
+				}
+			};
+
             let result = validate_hotp(&account, parsed_token);
             match result {
                 Ok((new_counter, valid_code)) => {

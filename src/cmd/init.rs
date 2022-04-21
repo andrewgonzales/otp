@@ -11,9 +11,21 @@ pub fn subcommand() -> Command<'static> {
 }
 
 pub fn run_init(init_args: &ArgMatches, mut account_store: AccountStore) {
-    let pin = init_args.value_of("pin").unwrap();
+    let pin = match init_args.value_of("pin") {
+        Some(pin) => pin,
+        _ => {
+            eprintln!("Pin is required");
+            return;
+        }
+    };
 
-    let encrypted_pin = encrypt_pw(pin);
+    let encrypted_pin = match encrypt_pw(pin) {
+        Ok(encrypted_pin) => encrypted_pin,
+        Err(e) => {
+            println!("Error encrypting passwordr {}", e);
+            return;
+        }
+    };
 
     match account_store.set_secrets(&encrypted_pin) {
         Ok(_) => println!("Client successfully initialized"),

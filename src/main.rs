@@ -18,7 +18,7 @@ mod utils;
 // strong shared secret > 128 bits (160 recommended)
 
 fn main() {
-	let account_store = AccountStore::new().expect("Unable to initialize store");
+    let account_store = AccountStore::new().expect("Unable to initialize store");
     let cmd = command!("hotp")
         .about("HOTP client and server methods")
         .version("v0.1.0")

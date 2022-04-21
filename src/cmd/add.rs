@@ -16,11 +16,16 @@ pub fn subcommand() -> Command<'static> {
 }
 
 pub fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
-    let account_name = add_args.value_of("account").unwrap();
-    let key = add_args.value_of("key").unwrap();
+    let (account_name, key) = match (add_args.value_of("account"), add_args.value_of("key")) {
+        (Some(account_name), Some(key)) => (account_name, key),
+        _ => {
+            eprintln!("Account name and key are required");
+            return;
+        }
+    };
 
     if account_store.get(account_name).is_some() {
-        println!("Account already exists");
+        eprintln!("Account already exists");
     } else {
         let account = Account::new(String::from(key));
         account_store.add(account_name.to_string(), account);

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::prelude::*;
-use std::io::{BufReader, Result};
+use std::io::{BufReader, Error, ErrorKind, Result};
 use std::path::PathBuf;
 
 use crate::utils::{decrypt_pw, decrypt_string, encrypt_string};
@@ -76,17 +76,16 @@ struct Secrets {
 
 impl Secrets {
     fn get_salt(&self) -> Option<Vec<u8>> {
-		let salt = match &self.hash {
-			Some(hash) => {
-				let salt = hash.clone().into_bytes()[..32].to_vec();
-				Some(salt)
-			},
-			None => None,
-		};
-		salt
-	}
+        let salt = match &self.hash {
+            Some(hash) => {
+                let salt = hash.clone().into_bytes()[..32].to_vec();
+                Some(salt)
+            }
+            None => None,
+        };
+        salt
+    }
 }
-
 
 pub struct AccountStore {
     accounts: BTreeMap<String, Account>,
@@ -107,22 +106,45 @@ impl AccountStore {
         let encrypted_account_contents = match attempt {
             Ok(contents) => contents,
             Err(err) => {
-                println!("oh no! {}", err);
+                println!("Oh no! Couldn't load the accounts {}", err);
                 Vec::new()
             }
         };
 
-        let account_contents = match encrypted_account_contents {
-            contents if contents.is_empty() => String::from_utf8(contents).unwrap(),
+        let account_contents: Result<String> = match encrypted_account_contents {
+            contents if contents.is_empty() => {
+                let empty_string = String::from_utf8(contents);
+                match empty_string {
+                    Ok(empty_string) => Ok(empty_string),
+                    Err(err) => Err(Error::new(ErrorKind::InvalidData, err)),
+                }
+            }
             encrypted_contents => {
-				let salt = secrets.get_salt().unwrap();
-                let nonce = secrets.nonce.clone().unwrap();
-                let content = decrypt_string(&encrypted_contents, &salt, &nonce).unwrap();
-                content
+                let salt = secrets.get_salt();
+                let nonce = secrets.nonce.clone();
+                let decrypted_contents = match (salt, nonce) {
+                    (Some(salt), Some(nonce)) => {
+                        let content = decrypt_string(&encrypted_contents, &salt, &nonce);
+
+                        match content {
+                            Ok(content) => Ok(content),
+                            Err(_) => Err(Error::new(ErrorKind::InvalidData, "Decryption failed")),
+                        }
+                    }
+                    _ => Err(Error::new(ErrorKind::InvalidData, "No salt or nonce found")),
+                }?;
+
+                Ok(decrypted_contents)
             }
         };
 
-        let accounts: BTreeMap<String, Account> = toml::from_str(&account_contents)?;
+        let accounts: BTreeMap<String, Account> = match account_contents {
+            Ok(content) => toml::from_str(&content)?,
+            Err(err) => {
+                println!("Oh no! Couldn't load the accounts {}", err);
+                BTreeMap::new()
+            }
+        };
 
         Ok(AccountStore { accounts, secrets })
     }
@@ -148,13 +170,36 @@ impl AccountStore {
     }
 
     pub fn save(&self) -> Result<()> {
-        let account_contents = toml::to_string(&self.accounts).expect("Serialization failure");
-		let salt = self.secrets.get_salt().unwrap();
-        let (encrypted_content, nonce) = encrypt_string(&account_contents, &salt).unwrap();
+        // Save accounts
+        let account_contents = match toml::to_string(&self.accounts) {
+            Ok(content) => content,
+            Err(err) => {
+                println!("Oh no! Couldn't save the accounts {}", err);
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Account serialization failure",
+                ));
+            }
+        };
+        let salt = match self.secrets.get_salt() {
+            Some(salt) => salt,
+            None => {
+                println!("No password found");
+                return Err(Error::new(ErrorKind::InvalidData, "Missing salt"));
+            }
+        };
+        let (encrypted_content, nonce) = match encrypt_string(&account_contents, &salt) {
+            Ok(result) => result,
+            Err(err) => {
+                println!("Oh no! Couldn't save the accounts {}", err);
+                return Err(Error::new(ErrorKind::InvalidData, "Encryption failure"));
+            }
+        };
 
         let path = get_path(FileType::Accounts)?;
         fs::write(path, encrypted_content)?;
 
+        // Save secrets
         let secrets_path = get_path(FileType::Secrets)?;
         if !secrets_path.exists() {
             File::create(&secrets_path)?;
@@ -165,7 +210,17 @@ impl AccountStore {
             nonce: Some(nonce),
         };
 
-        let secrets_content = toml::to_string(&secrets).expect("Serialization failure");
+        let secrets_content = match toml::to_string(&secrets) {
+            Ok(content) => content,
+            Err(err) => {
+                println!("Oh no! Couldn't save {}", err);
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "Secrets serialization failure",
+                ));
+            }
+        };
+
         fs::write(secrets_path, secrets_content)?;
 
         Ok(())
@@ -197,7 +252,10 @@ impl AccountStore {
     }
 
     pub fn validate_pin(&self, pin: &str) -> bool {
-        let stored_pin = self.secrets.hash.clone().unwrap();
+        let stored_pin = match self.secrets.hash.clone() {
+            Some(pin) => pin,
+            None => return false,
+        };
         let matches = decrypt_pw(&stored_pin, pin);
         matches
     }

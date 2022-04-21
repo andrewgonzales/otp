@@ -13,7 +13,13 @@ pub fn subcommand() -> Command<'static> {
 }
 
 pub fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
-    let account_name = get_args.value_of("account").unwrap();
+    let account_name = match get_args.value_of("account") {
+        Some(account_name) => account_name,
+        _ => {
+            eprintln!("Account name is required");
+            return;
+        }
+    };
 
     let account = account_store.get(account_name);
 
