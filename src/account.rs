@@ -5,7 +5,7 @@ use std::io::prelude::*;
 use std::io::{BufReader, Error, ErrorKind, Result};
 use std::path::PathBuf;
 
-use crate::utils::{decrypt_pw, decrypt_string, encrypt_string};
+use crate::crypto::{decrypt_pw, decrypt_string, encrypt_string};
 
 const FILE_NAME: &str = "accounts.txt";
 const SECRETS_FILE_NAME: &str = "secrets.txt";
@@ -53,6 +53,67 @@ pub fn load_file_to_vec(path: &PathBuf) -> Result<Vec<u8>> {
     Ok(contents)
 }
 
+fn decrypt_accounts(encrypted_account_contents: &Vec<u8>, secrets: &Secrets) -> Result<String> {
+    match encrypted_account_contents {
+        contents if contents.is_empty() => {
+            let empty_string = String::from_utf8(contents.to_vec());
+            match empty_string {
+                Ok(empty_string) => return Ok(empty_string),
+                Err(err) => return Err(Error::new(ErrorKind::InvalidData, err)),
+            }
+        }
+        encrypted_contents => {
+            let salt = secrets.get_salt();
+            let nonce = secrets.nonce.clone();
+            let decrypted_contents = match (salt, nonce) {
+                (Some(salt), Some(nonce)) => {
+                    let content = decrypt_string(&encrypted_contents, &salt, &nonce);
+
+                    match content {
+                        Ok(content) => Ok(content),
+                        Err(_) => Err(Error::new(ErrorKind::InvalidData, "Decryption failed")),
+                    }
+                }
+                _ => Err(Error::new(ErrorKind::InvalidData, "No salt or nonce found")),
+            }?;
+
+            return Ok(decrypted_contents);
+        }
+    };
+}
+
+fn deserialize_accounts(account_contents: String) -> Result<BTreeMap<String, Account>> {
+	let accounts = toml::from_str(&account_contents);
+	match accounts {
+		Ok(accounts) => Ok(accounts),
+		Err(err) => Err(Error::new(ErrorKind::InvalidData, format!("Deserialization failure: {}", err))),
+	}
+}
+
+fn load_accounts() -> Result<Vec<u8>> {
+    let account_path = get_path(FileType::Accounts)?;
+
+    let attempt = load_file_to_vec(&account_path);
+    let encrypted_account_contents = match attempt {
+        Ok(contents) => contents,
+        Err(err) => {
+            eprintln!("Error: {}", err);
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "Oh no! Couldn't load the accounts",
+            ));
+        }
+    };
+    Ok(encrypted_account_contents)
+}
+
+fn load_secrets() -> Result<Secrets> {
+    let secrets_path = get_path(FileType::Secrets)?;
+    let secrets_content = load_file_to_string(&secrets_path)?;
+    let secrets: Secrets = toml::from_str(&secrets_content)?;
+    Ok(secrets)
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Account {
     pub key: String,
@@ -94,57 +155,11 @@ pub struct AccountStore {
 
 impl AccountStore {
     pub fn new() -> Result<AccountStore> {
-        // Load secrets
-        let secrets_path = get_path(FileType::Secrets)?;
-        let secrets_content = load_file_to_string(&secrets_path)?;
-        let secrets: Secrets = toml::from_str(&secrets_content)?;
+        let secrets = load_secrets()?;
+        let encrypted_account_contents = load_accounts()?;
 
-        // Load Accounts
-        let account_path = get_path(FileType::Accounts)?;
-
-        let attempt = load_file_to_vec(&account_path);
-        let encrypted_account_contents = match attempt {
-            Ok(contents) => contents,
-            Err(err) => {
-                println!("Oh no! Couldn't load the accounts {}", err);
-                Vec::new()
-            }
-        };
-
-        let account_contents: Result<String> = match encrypted_account_contents {
-            contents if contents.is_empty() => {
-                let empty_string = String::from_utf8(contents);
-                match empty_string {
-                    Ok(empty_string) => Ok(empty_string),
-                    Err(err) => Err(Error::new(ErrorKind::InvalidData, err)),
-                }
-            }
-            encrypted_contents => {
-                let salt = secrets.get_salt();
-                let nonce = secrets.nonce.clone();
-                let decrypted_contents = match (salt, nonce) {
-                    (Some(salt), Some(nonce)) => {
-                        let content = decrypt_string(&encrypted_contents, &salt, &nonce);
-
-                        match content {
-                            Ok(content) => Ok(content),
-                            Err(_) => Err(Error::new(ErrorKind::InvalidData, "Decryption failed")),
-                        }
-                    }
-                    _ => Err(Error::new(ErrorKind::InvalidData, "No salt or nonce found")),
-                }?;
-
-                Ok(decrypted_contents)
-            }
-        };
-
-        let accounts: BTreeMap<String, Account> = match account_contents {
-            Ok(content) => toml::from_str(&content)?,
-            Err(err) => {
-                println!("Oh no! Couldn't load the accounts {}", err);
-                BTreeMap::new()
-            }
-        };
+        let account_contents = decrypt_accounts(&encrypted_account_contents, &secrets)?;
+        let accounts = deserialize_accounts(account_contents)?;
 
         Ok(AccountStore { accounts, secrets })
     }

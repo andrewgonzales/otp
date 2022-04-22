@@ -6,6 +6,7 @@ use crate::utils::validate_pin;
 
 mod account;
 mod cmd;
+mod crypto;
 mod hotp;
 mod utils;
 

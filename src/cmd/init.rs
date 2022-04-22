@@ -2,7 +2,7 @@ use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
 use crate::account::AccountStore;
-use crate::utils::encrypt_pw;
+use crate::crypto::encrypt_pw;
 
 pub fn subcommand() -> Command<'static> {
     command!(CommandType::Init.as_str())
