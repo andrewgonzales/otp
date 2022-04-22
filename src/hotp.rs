@@ -24,7 +24,7 @@ pub fn validate_hotp(account: &Account, code: u32) -> Result<(i32, u32), Error> 
         let test_code = get_hotp(&account.key, i);
         println!("Trying {}", test_code);
         if test_code == code {
-            return Ok((i, test_code));
+            return Ok((i + 1, test_code));
         }
     }
 
