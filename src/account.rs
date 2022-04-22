@@ -83,11 +83,14 @@ fn decrypt_accounts(encrypted_account_contents: &Vec<u8>, secrets: &Secrets) -> 
 }
 
 fn deserialize_accounts(account_contents: String) -> Result<BTreeMap<String, Account>> {
-	let accounts = toml::from_str(&account_contents);
-	match accounts {
-		Ok(accounts) => Ok(accounts),
-		Err(err) => Err(Error::new(ErrorKind::InvalidData, format!("Deserialization failure: {}", err))),
-	}
+    let accounts = toml::from_str(&account_contents);
+    match accounts {
+        Ok(accounts) => Ok(accounts),
+        Err(err) => Err(Error::new(
+            ErrorKind::InvalidData,
+            format!("Deserialization failure: {}", err),
+        )),
+    }
 }
 
 fn load_accounts() -> Result<Vec<u8>> {
@@ -185,7 +188,7 @@ impl AccountStore {
     }
 
     pub fn save(&self) -> Result<()> {
-        // Save accounts
+        // Encrypt and serialize accounts
         let account_contents = match toml::to_string(&self.accounts) {
             Ok(content) => content,
             Err(err) => {
@@ -212,14 +215,8 @@ impl AccountStore {
         };
 
         let path = get_path(FileType::Accounts)?;
-        fs::write(path, encrypted_content)?;
 
-        // Save secrets
-        let secrets_path = get_path(FileType::Secrets)?;
-        if !secrets_path.exists() {
-            File::create(&secrets_path)?;
-        }
-
+        // Serialize secrets
         let secrets = Secrets {
             hash: self.secrets.hash.clone(),
             nonce: Some(nonce),
@@ -236,7 +233,13 @@ impl AccountStore {
             }
         };
 
+        // Save
+        let secrets_path = get_path(FileType::Secrets)?;
+        if !secrets_path.exists() {
+            File::create(&secrets_path)?;
+        }
         fs::write(secrets_path, secrets_content)?;
+        fs::write(path, encrypted_content)?;
 
         Ok(())
     }
