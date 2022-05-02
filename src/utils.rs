@@ -49,9 +49,7 @@ mod tests {
 		match include_hash {
 			true => {
 				let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
-				account_store.set_secrets(&hash).expect(
-					"Failed to set test secrets",
-				);
+				account_store.set_secrets(&hash);
 				account_store
 			},
 			false => account_store,

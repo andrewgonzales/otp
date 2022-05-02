@@ -252,21 +252,11 @@ impl AccountStore {
         }
     }
 
-    pub fn set_secrets(&mut self, hash: &str) -> Result<()> {
+    pub fn set_secrets(&mut self, hash: &str) {
         self.secrets = Secrets {
             hash: Some(String::from(hash)),
             nonce: None,
         };
-
-        let secrets_contents = toml::to_string(&self.secrets).expect("Serialization failure");
-
-        let secrets_path = get_path(FileType::Secrets)?;
-        if !secrets_path.exists() {
-            File::create(&secrets_path)?;
-        }
-        fs::write(secrets_path, &secrets_contents)?;
-
-        Ok(())
     }
 
     pub fn validate_pin(&self, pin: &str) -> bool {
@@ -282,11 +272,11 @@ impl AccountStore {
 // Exported for testing
 #[cfg(test)]
 pub fn create_empty_store() -> AccountStore {
-	AccountStore {
-		accounts: BTreeMap::new(),
-		secrets: Secrets {
-			hash: None,
-			nonce: None,
-		},
-	}
+    AccountStore {
+        accounts: BTreeMap::new(),
+        secrets: Secrets {
+            hash: None,
+            nonce: None,
+        },
+    }
 }

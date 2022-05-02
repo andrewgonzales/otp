@@ -59,3 +59,43 @@ pub fn decrypt_string(
         Err(e) => Err(format!("Decryption failure: {}", e)),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hashes_and_verifies_a_password() {
+        let password = "some_good_password!@#";
+        let hash = encrypt_pw(password).unwrap();
+        assert!(password != &hash);
+        assert!(decrypt_pw(&hash, password));
+    }
+
+    #[test]
+    fn fails_to_verify_a_password_with_wrong_hash() {
+        let password = "some_good_password!@#";
+        let hash = encrypt_pw(password).unwrap();
+        assert!(!decrypt_pw(&hash, "wrong_password"));
+    }
+
+    #[test]
+    fn generates_a_24_byte_nonce() {
+        let nonce = generate_nonce();
+        assert_eq!(nonce.len(), 24);
+    }
+
+    #[test]
+    fn encrypts_and_decrypts_a_string() {
+        let hash = encrypt_pw("123456").unwrap();
+        let salt = hash.into_bytes()[..32].to_vec();
+
+        let text = "some_text";
+        let (ciphertext, nonce) = encrypt_string(text, &salt).unwrap();
+        assert!(ciphertext.len() > 0);
+        assert!(ciphertext != text.as_bytes());
+
+        let decrypted_text = decrypt_string(&ciphertext, &salt, &nonce).unwrap();
+        assert_eq!(text, decrypted_text);
+    }
+}

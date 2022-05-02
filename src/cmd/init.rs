@@ -27,7 +27,9 @@ pub fn run_init(init_args: &ArgMatches, mut account_store: AccountStore) {
         }
     };
 
-    match account_store.set_secrets(&encrypted_pin) {
+    account_store.set_secrets(&encrypted_pin);
+
+	match account_store.save() {
         Ok(_) => println!("Client successfully initialized"),
         Err(err) => eprintln!("{}", err),
     }
