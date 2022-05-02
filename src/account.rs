@@ -278,3 +278,15 @@ impl AccountStore {
         matches
     }
 }
+
+// Exported for testing
+#[cfg(test)]
+pub fn create_empty_store() -> AccountStore {
+	AccountStore {
+		accounts: BTreeMap::new(),
+		secrets: Secrets {
+			hash: None,
+			nonce: None,
+		},
+	}
+}
