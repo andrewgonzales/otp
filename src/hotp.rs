@@ -68,3 +68,38 @@ fn dynamic_truncation(hmac: Vec<u8>) -> u32 {
         | (hmac[offset + 3] as u32 & 0xff);
     code
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SECRET: &str = "N5WUS53LQBPNVSEE6CH5WHATMVAONRMJ";
+
+    #[test]
+    fn gets_an_otp_value() {
+        let expected_codes = vec![852775, 551063, 206217, 660610, 418804];
+        for c in 0..5 {
+            let otp = get_hotp(SECRET, c);
+            assert_eq!(expected_codes[c as usize], otp);
+        }
+    }
+
+    #[test]
+    fn validates_an_otp_value() {
+        let account = Account::new(SECRET.to_string());
+        assert!(validate_hotp(&account, 852775).is_ok());
+    }
+
+    #[test]
+    fn validate_otp_looks_ahead() {
+		let account = Account::new(SECRET.to_string());
+		let code = 677964; // 10th code
+        assert!(validate_hotp(&account, code).is_ok());
+	}
+
+	#[test]
+	fn validate_otp_returns_error_for_invalid_code() {
+		let account = Account::new(SECRET.to_string());
+		assert!(validate_hotp(&account, 555555).is_err());
+	}
+}
