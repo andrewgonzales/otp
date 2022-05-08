@@ -11,6 +11,13 @@ pub fn generate_secret() -> String {
     BASE32_NOPAD.encode(&dest)
 }
 
+// Generate a 32 byte random base32 string
+pub fn generate_secret_32() -> String {
+    let mut dest = [0u8; 32];
+    OsRng.fill_bytes(&mut dest);
+    BASE32_NOPAD.encode(&dest)
+}
+
 // Validate key provided in arguments is a valid base32 encoding
 pub fn is_base32_key(value: &str) -> Result<(), String> {
     let value = value.to_uppercase();
