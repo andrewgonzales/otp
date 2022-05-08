@@ -40,7 +40,7 @@ fn load_file_to_string(path: &PathBuf) -> Result<String> {
     Ok(contents)
 }
 
-pub fn load_file_to_vec(path: &PathBuf) -> Result<Vec<u8>> {
+fn load_file_to_vec(path: &PathBuf) -> Result<Vec<u8>> {
     if !path.exists() {
         File::create(&path)?;
     }
@@ -117,7 +117,7 @@ fn load_secrets() -> Result<Secrets> {
     Ok(secrets)
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Account {
     pub key: String,
     pub counter: Option<i32>,
@@ -279,4 +279,100 @@ pub fn create_empty_store() -> AccountStore {
             nonce: None,
         },
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::crypto::encrypt_pw;
+
+    fn get_mock_store() -> AccountStore {
+        let mut store = create_empty_store();
+        let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
+        store.set_secrets(&hash);
+        store.add(String::from("github"), Account::new(String::from("key-1")));
+        store.add(String::from("google"), Account::new(String::from("key-2")));
+        store
+    }
+
+    #[test]
+    fn adds_an_account() {
+        let mut store = get_mock_store();
+        let account = Account::new(String::from("some-key"));
+        store.add(String::from("pets.com"), account);
+
+        assert_eq!(
+            store.get("pets.com"),
+            Some(&Account {
+                key: String::from("some-key"),
+                counter: Some(0)
+            })
+        );
+    }
+
+    #[test]
+    fn deletes_an_account() {
+        let mut store = get_mock_store();
+        store.delete("github");
+
+        assert_eq!(store.get("github"), None);
+    }
+
+    #[test]
+    fn lists_accounts() {
+        let store = get_mock_store();
+        let accounts = store.list();
+
+        assert_eq!(accounts, vec!["github", "google"]);
+    }
+
+    #[test]
+    fn is_initialized_true() {
+        let store = get_mock_store();
+
+        assert_eq!(store.is_initialized(), true);
+    }
+
+    #[test]
+    fn is_initialized_false() {
+        let store = create_empty_store();
+
+        assert_eq!(store.is_initialized(), false);
+    }
+
+    #[test]
+    fn sets_counter_value() {
+        let mut store = get_mock_store();
+        store.set_counter("github", 101);
+
+        assert_eq!(
+            store.get("github"),
+            Some(&Account {
+                key: String::from("key-1"),
+                counter: Some(101)
+            })
+        );
+    }
+
+    #[test]
+	fn sets_secrets() {
+		let mut store = create_empty_store();
+		let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
+		store.set_secrets(&hash);
+
+		assert_eq!(store.secrets.hash, Some(hash));
+		assert_eq!(store.secrets.nonce, None);
+	}
+
+    #[test]
+	fn validates_correct_pin() {
+		let store = get_mock_store();
+		assert_eq!(store.validate_pin("123456"), true);
+	}
+
+	#[test]
+	fn validates_incorrect_pin() {
+		let store = get_mock_store();
+		assert_eq!(store.validate_pin("000000"), false);
+	}
 }
