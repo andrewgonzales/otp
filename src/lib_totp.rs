@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-mod totp;
+// mod totp;
 
 // TOTP https://datatracker.ietf.org/doc/html/rfc6238
 
@@ -19,6 +19,6 @@ fn main() {
 	// let time_step = 30;
 	let periods = secs / TIME_STEP;
 	println!("periods = {:?}", periods);
-    let totp = totp::get_totp(&key, periods);
-    println!("totp = {:?}", totp);
+    // let totp = totp::get_totp(&key, periods);
+    // println!("totp = {:?}", totp);
 }

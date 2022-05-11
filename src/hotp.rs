@@ -2,7 +2,7 @@ use hmac::{Hmac, Mac};
 use sha1::Sha1;
 use std::io::{Error, ErrorKind};
 
-use crate::account::Account;
+use crate::account::{Account, OtpType};
 
 type HmacSha1 = Hmac<Sha1>;
 
@@ -13,9 +13,9 @@ pub fn get_hotp(secret: &str, counter: i32) -> u32 {
 
 pub fn validate_hotp(account: &Account, code: u32) -> Result<(i32, u32), Error> {
     let window_size = 10;
-    let counter = match account.counter {
-        Some(value) => value,
-        None => 0,
+    let counter = match account.otp_type {
+        OtpType::HOTP(Some(value)) => value,
+        _ => return Err(Error::new(ErrorKind::InvalidInput, "Account is not a HOTP account")),
     };
 
     println!("entered: {}", code);

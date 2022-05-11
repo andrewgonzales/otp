@@ -1,8 +1,9 @@
 use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
-use crate::account::AccountStore;
+use crate::account::{AccountStore, OtpType};
 use crate::hotp::validate_hotp;
+use crate::totp::validate_totp;
 
 pub fn subcommand() -> Command<'static> {
     command!(CommandType::Validate.as_str())
@@ -15,13 +16,16 @@ pub fn subcommand() -> Command<'static> {
 }
 
 pub fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
-    let (account_name, token) = match (validate_args.value_of("account"), validate_args.value_of("token")) {
-		(Some(account_name), Some(token)) => (account_name, token),
-		_ => {
-			eprintln!("Account name and token are required");
-			return;
-		}
-	};
+    let (account_name, token) = match (
+        validate_args.value_of("account"),
+        validate_args.value_of("token"),
+    ) {
+        (Some(account_name), Some(token)) => (account_name, token),
+        _ => {
+            eprintln!("Account name and token are required");
+            return;
+        }
+    };
 
     let account = account_store.get(account_name);
 
@@ -29,25 +33,38 @@ pub fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore)
         None => println!("Account not found: {}", account_name),
         Some(account) => {
             let parsed_token = match token.parse::<u32>() {
-				Ok(parsed_token) => parsed_token,
-				Err(err) => {
-					eprintln!("Unable to parse token: {}", err);
-					return;
-				}
-			};
-
-            let result = validate_hotp(&account, parsed_token);
-            match result {
-                Ok((new_counter, valid_code)) => {
-                    println!("{} valid", valid_code);
-                    account_store.set_counter(account_name, new_counter);
-
-                    match account_store.save() {
-                        Ok(_) => println!("Success!"),
-                        Err(err) => eprintln!("Unable to save account: {}", err),
-                    }
+                Ok(parsed_token) => parsed_token,
+                Err(err) => {
+                    eprintln!("Unable to parse token: {}", err);
+                    return;
                 }
-                Err(err) => eprintln!("{}", err),
+            };
+
+            let is_totp = match account.otp_type {
+                OtpType::TOTP => true,
+                _ => false,
+            };
+
+            if is_totp {
+                let result = validate_totp(&account, parsed_token);
+                match result {
+                    Ok(valid_code) => println!("{} valid", valid_code),
+                    Err(err) => eprintln!("{}", err),
+                }
+            } else {
+                let result = validate_hotp(&account, parsed_token);
+                match result {
+                    Ok((new_counter, valid_code)) => {
+                        println!("{} valid", valid_code);
+                        account_store.set_counter(account_name, new_counter);
+
+                        match account_store.save() {
+                            Ok(_) => println!("Success!"),
+                            Err(err) => eprintln!("Unable to save account: {}", err),
+                        }
+                    }
+                    Err(err) => eprintln!("{}", err),
+                }
             }
         }
     }

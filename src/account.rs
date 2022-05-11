@@ -117,17 +117,25 @@ fn load_secrets() -> Result<Secrets> {
     Ok(secrets)
 }
 
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "type")]
+pub enum OtpType {
+	HOTP(Option<i32>),
+    TOTP,
+}
+
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Account {
     pub key: String,
-    pub counter: Option<i32>,
+    pub otp_type: OtpType,
 }
 
 impl Account {
-    pub fn new(key: String) -> Self {
+    pub fn new(key: String, otp_type: OtpType) -> Self {
+        println!("otp_type = {:?}", otp_type);
         Account {
             key,
-            counter: Some(0),
+            otp_type,
         }
     }
 }
@@ -192,7 +200,7 @@ impl AccountStore {
         let account_contents = match toml::to_string(&self.accounts) {
             Ok(content) => content,
             Err(err) => {
-                println!("Oh no! Couldn't save the accounts {}", err);
+                println!("Oh no! Couldn't save the accounts: {}", err);
                 return Err(Error::new(
                     ErrorKind::InvalidData,
                     "Account serialization failure",
@@ -247,7 +255,7 @@ impl AccountStore {
     pub fn set_counter(&mut self, account_name: &str, counter: i32) {
         let account = self.accounts.get_mut(account_name);
         match account {
-            Some(account) => account.counter = Some(counter),
+            Some(account) => account.otp_type = OtpType::HOTP(Some(counter)),
             None => println!("Account not found: {}", account_name),
         }
     }
@@ -355,24 +363,24 @@ mod tests {
     }
 
     #[test]
-	fn sets_secrets() {
-		let mut store = create_empty_store();
-		let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
-		store.set_secrets(&hash);
+    fn sets_secrets() {
+        let mut store = create_empty_store();
+        let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
+        store.set_secrets(&hash);
 
-		assert_eq!(store.secrets.hash, Some(hash));
-		assert_eq!(store.secrets.nonce, None);
-	}
+        assert_eq!(store.secrets.hash, Some(hash));
+        assert_eq!(store.secrets.nonce, None);
+    }
 
     #[test]
-	fn validates_correct_pin() {
-		let store = get_mock_store();
-		assert_eq!(store.validate_pin("123456"), true);
-	}
+    fn validates_correct_pin() {
+        let store = get_mock_store();
+        assert_eq!(store.validate_pin("123456"), true);
+    }
 
-	#[test]
-	fn validates_incorrect_pin() {
-		let store = get_mock_store();
-		assert_eq!(store.validate_pin("000000"), false);
-	}
+    #[test]
+    fn validates_incorrect_pin() {
+        let store = get_mock_store();
+        assert_eq!(store.validate_pin("000000"), false);
+    }
 }

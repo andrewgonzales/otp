@@ -8,6 +8,7 @@ mod account;
 mod cmd;
 mod crypto;
 mod hotp;
+mod totp;
 mod utils;
 
 // HOTP https://datatracker.ietf.org/doc/html/rfc4226
@@ -35,7 +36,7 @@ fn main() {
     let matches = cmd.get_matches();
     match matches.subcommand() {
         Some(("init", init_args)) => cmd::init::run_init(init_args, account_store),
-        Some(("generate", _)) => cmd::generate::run_generate(),
+        Some(("generate", generate_args)) => cmd::generate::run_generate(generate_args),
         Some(("list", _)) => cmd::list::run_list(account_store),
         Some(("validate", validate_args)) => {
             cmd::validate::run_validate(validate_args, account_store)
