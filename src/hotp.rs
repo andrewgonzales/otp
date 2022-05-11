@@ -15,7 +15,12 @@ pub fn validate_hotp(account: &Account, code: u32) -> Result<(i32, u32), Error> 
     let window_size = 10;
     let counter = match account.otp_type {
         OtpType::HOTP(Some(value)) => value,
-        _ => return Err(Error::new(ErrorKind::InvalidInput, "Account is not a HOTP account")),
+        _ => {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "Account is not a HOTP account",
+            ))
+        }
     };
 
     println!("entered: {}", code);
@@ -92,14 +97,14 @@ mod tests {
 
     #[test]
     fn validate_otp_looks_ahead() {
-		let account = Account::new(SECRET.to_string());
-		let code = 677964; // 10th code
+        let account = Account::new(SECRET.to_string());
+        let code = 677964; // 10th code
         assert!(validate_hotp(&account, code).is_ok());
-	}
+    }
 
-	#[test]
-	fn validate_otp_returns_error_for_invalid_code() {
-		let account = Account::new(SECRET.to_string());
-		assert!(validate_hotp(&account, 555555).is_err());
-	}
+    #[test]
+    fn validate_otp_returns_error_for_invalid_code() {
+        let account = Account::new(SECRET.to_string());
+        assert!(validate_hotp(&account, 555555).is_err());
+    }
 }

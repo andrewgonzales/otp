@@ -12,10 +12,9 @@ pub fn subcommand() -> Command<'static> {
 
 pub fn run_generate(generate_args: &ArgMatches) {
 	let is_hotp = generate_args.is_present("counter");
-    let new_secret_key = if is_hotp {
-		generate_secret()
-	} else {
-		generate_secret_32()
+    let new_secret_key = match is_hotp {
+		true => generate_secret_32(),
+		false => generate_secret(),
 	};
     println!("{}", new_secret_key);
 }

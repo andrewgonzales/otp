@@ -12,7 +12,7 @@ pub fn subcommand() -> Command<'static> {
             arg!(-k --key <KEY> "Secret key")
                 .required(true)
                 .validator(is_base32_key),
-			arg!(-c --hotp "Counter-based HOTP (Time-based TOTP is default)").required(false),
+            arg!(-c --hotp "Counter-based HOTP (Time-based TOTP is default)").required(false),
         ])
 }
 
@@ -28,12 +28,11 @@ pub fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
     if account_store.get(account_name).is_some() {
         eprintln!("Account already exists");
     } else {
-		let is_hotp = add_args.is_present("hotp");
-		let otp_type = if is_hotp {
-			OtpType::HOTP(Some(0))
-		} else {
-			OtpType::TOTP
-		};
+        let is_hotp = add_args.is_present("hotp");
+        let otp_type = match is_hotp {
+           true => OtpType::HOTP(Some(0)),
+		   false => OtpType::TOTP,
+        };
         let account = Account::new(String::from(key), otp_type);
         account_store.add(account_name.to_string(), account);
         match account_store.save() {

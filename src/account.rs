@@ -120,7 +120,7 @@ fn load_secrets() -> Result<Secrets> {
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum OtpType {
-	HOTP(Option<i32>),
+    HOTP(Option<i32>),
     TOTP,
 }
 
@@ -132,11 +132,7 @@ pub struct Account {
 
 impl Account {
     pub fn new(key: String, otp_type: OtpType) -> Self {
-        println!("otp_type = {:?}", otp_type);
-        Account {
-            key,
-            otp_type,
-        }
+        Account { key, otp_type }
     }
 }
 

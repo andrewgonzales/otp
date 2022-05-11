@@ -9,7 +9,6 @@ type HmacSha256 = Hmac<Sha256>;
 
 // Similar to get_hotp, but using SHA-256 digest and u64/32-byte strings
 pub fn get_totp(secret: &str, moving_factor: u64) -> u32 {
-	// let counter = get_totp_moving_factor();
     let hmac = make_hmac(secret.as_bytes(), moving_factor);
     truncate(hmac) as u32
 }
@@ -58,18 +57,21 @@ pub fn get_totp_moving_factor() -> u64 {
     let time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
     let secs = time.unwrap().as_secs();
     let periods = secs / TIME_STEP;
-	periods
+    periods
 }
 
 pub fn validate_totp(account: &Account, code: u32) -> Result<u32, Error> {
     let window_size = 3;
-	if account.otp_type != OtpType::TOTP {
-		return Err(Error::new(ErrorKind::InvalidInput, "Account is not a TOTP account"));
-	};
+    if account.otp_type != OtpType::TOTP {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "Account is not a TOTP account",
+        ));
+    };
 
     println!("entered: {}", code);
 
-	let moving_factor = get_totp_moving_factor();
+    let moving_factor = get_totp_moving_factor();
     for mf in (moving_factor - window_size)..(moving_factor + window_size) {
         let test_code = get_totp(&account.key, mf);
         println!("Trying {}", test_code);
