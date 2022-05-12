@@ -294,22 +294,28 @@ mod tests {
         let mut store = create_empty_store();
         let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
         store.set_secrets(&hash);
-        store.add(String::from("github"), Account::new(String::from("key-1")));
-        store.add(String::from("google"), Account::new(String::from("key-2")));
+        store.add(
+            String::from("github"),
+            Account::new(String::from("key-1"), OtpType::HOTP(Some(0))),
+        );
+        store.add(
+            String::from("google"),
+            Account::new(String::from("key-2"), OtpType::TOTP),
+        );
         store
     }
 
     #[test]
     fn adds_an_account() {
         let mut store = get_mock_store();
-        let account = Account::new(String::from("some-key"));
+        let account = Account::new(String::from("some-key"), OtpType::TOTP);
         store.add(String::from("pets.com"), account);
 
         assert_eq!(
             store.get("pets.com"),
             Some(&Account {
                 key: String::from("some-key"),
-                counter: Some(0)
+                otp_type: OtpType::TOTP,
             })
         );
     }
@@ -353,7 +359,7 @@ mod tests {
             store.get("github"),
             Some(&Account {
                 key: String::from("key-1"),
-                counter: Some(101)
+                otp_type: OtpType::HOTP(Some(101)),
             })
         );
     }

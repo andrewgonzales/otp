@@ -80,6 +80,10 @@ mod tests {
 
     const SECRET: &str = "N5WUS53LQBPNVSEE6CH5WHATMVAONRMJ";
 
+    fn get_test_account() -> Account {
+        Account::new(SECRET.to_string(), OtpType::HOTP(Some(0)))
+    }
+
     #[test]
     fn gets_an_otp_value() {
         let expected_codes = vec![852775, 551063, 206217, 660610, 418804];
@@ -91,20 +95,20 @@ mod tests {
 
     #[test]
     fn validates_an_otp_value() {
-        let account = Account::new(SECRET.to_string());
+        let account = get_test_account();
         assert!(validate_hotp(&account, 852775).is_ok());
     }
 
     #[test]
     fn validate_otp_looks_ahead() {
-        let account = Account::new(SECRET.to_string());
+        let account = get_test_account();
         let code = 677964; // 10th code
         assert!(validate_hotp(&account, code).is_ok());
     }
 
     #[test]
     fn validate_otp_returns_error_for_invalid_code() {
-        let account = Account::new(SECRET.to_string());
+        let account = get_test_account();
         assert!(validate_hotp(&account, 555555).is_err());
     }
 }
