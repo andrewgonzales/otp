@@ -15,7 +15,7 @@ pub fn subcommand() -> Command<'static> {
         ])
 }
 
-pub fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore) {
+pub fn run_validate(validate_args: &ArgMatches, account_store: AccountStore) {
     let (account_name, token) = match (
         validate_args.value_of("account"),
         validate_args.value_of("token"),
@@ -54,14 +54,18 @@ pub fn run_validate(validate_args: &ArgMatches, mut account_store: AccountStore)
             } else {
                 let result = validate_hotp(&account, parsed_token);
                 match result {
-                    Ok((new_counter, valid_code)) => {
+                    Ok((_new_counter, valid_code)) => {
                         println!("{} valid", valid_code);
+
+                        // The server implementing this check should update its counter to prevent replay attacks
+                        /*
                         account_store.set_counter(account_name, new_counter);
 
                         match account_store.save() {
                             Ok(_) => println!("Success!"),
                             Err(err) => eprintln!("Unable to save account: {}", err),
                         }
+                        */
                     }
                     Err(err) => eprintln!("{}", err),
                 }
