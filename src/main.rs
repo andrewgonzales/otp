@@ -45,7 +45,6 @@ fn main() {
 
     let matches = cmd.get_matches();
     match matches.subcommand() {
-        Some(("init", init_args)) => cmd::init::run_init(init_args, account_store),
         Some(("generate", generate_args)) => cmd::generate::run_generate(generate_args),
         Some(("list", _)) => cmd::list::run_list(account_store),
         Some(("validate", validate_args)) => {
@@ -55,6 +54,7 @@ fn main() {
         Some(subcommand) => {
             match check_pin(&account_store) {
                 Ok(_) => match subcommand {
+                    ("init", init_args) => cmd::init::run_init(init_args, account_store),
                     ("add", add_args) => cmd::add::run_add(add_args, account_store),
                     ("delete", delete_args) => cmd::delete::run_delete(delete_args, account_store),
                     ("get", get_args) => cmd::get::run_get(get_args, account_store),
