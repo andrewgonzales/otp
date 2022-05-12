@@ -11,7 +11,8 @@ mod hotp;
 mod totp;
 mod utils;
 
-// HOTP https://datatracker.ietf.org/doc/html/rfc4226
+/*
+HOTP https://datatracker.ietf.org/doc/html/rfc4226
 
 // counter-based
 // must support tokens without numeric input
@@ -19,10 +20,19 @@ mod utils;
 // re-sync mechanism between client/generator and server/validator
 // strong shared secret > 128 bits (160 recommended)
 
+*/
+
+/*
+TOTP https://datatracker.ietf.org/doc/html/rfc6238
+
+// uses HOTP with SHA-256 digest
+// time-based moving factor based on system time
+*/
+
 fn main() {
     let account_store = AccountStore::new().expect("Unable to initialize store");
-    let cmd = command!("hotp")
-        .about("HOTP client and server methods")
+    let cmd = command!("otp")
+        .about("Time-based and counter-based one-time password generator")
         .version("v0.1.0")
         .subcommand_required(true)
         .subcommand(cmd::init::subcommand())
