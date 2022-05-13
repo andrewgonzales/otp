@@ -1,7 +1,7 @@
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use std::io::{Error, ErrorKind};
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use crate::account::{Account, OtpType};
 
@@ -52,10 +52,27 @@ fn dynamic_truncation(hmac: Vec<u8>) -> u64 {
 }
 
 const TIME_STEP: u64 = 30;
+pub struct Clock {}
 
-pub fn get_totp_moving_factor() -> u64 {
-    let time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH);
-    let secs = time.unwrap().as_secs();
+impl Clock {
+    pub fn new() -> Self {
+        Clock {}
+    }
+}
+pub trait GetTime {
+    fn get_now(&self) -> SystemTime;
+}
+
+impl GetTime for Clock {
+    fn get_now(&self) -> SystemTime {
+        SystemTime::now()
+    }
+}
+
+pub fn get_totp_moving_factor(clock: &impl GetTime) -> u64 {
+    let now = clock.get_now();
+    let time = now.duration_since(SystemTime::UNIX_EPOCH);
+    let secs = time.unwrap_or(Duration::new(0, 0)).as_secs();
     let periods = secs / TIME_STEP;
     periods
 }
@@ -71,7 +88,7 @@ pub fn validate_totp(account: &Account, code: u32) -> Result<u32, Error> {
 
     println!("entered: {}", code);
 
-    let moving_factor = get_totp_moving_factor();
+    let moving_factor = get_totp_moving_factor(&Clock::new());
     for mf in (moving_factor - window_size)..(moving_factor + window_size) {
         let test_code = get_totp(&account.key, mf);
         println!("Trying {}", test_code);
@@ -81,4 +98,74 @@ pub fn validate_totp(account: &Account, code: u32) -> Result<u32, Error> {
     }
 
     Err(Error::new(ErrorKind::Other, "Invalid code"))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::Add;
+
+    use super::*;
+
+    const SECRET: &str = "BS5LINH6DJQY2Z4KEXCSUUBA5DXMVMXCXIDBSB2VSR42VJZBUMLQ";
+
+    fn get_test_account() -> Account {
+        Account::new(SECRET.to_string(), OtpType::TOTP)
+    }
+
+    struct MockClock {}
+
+    impl MockClock {
+        pub fn new() -> Self {
+            MockClock {}
+        }
+    }
+
+    impl GetTime for MockClock {
+        fn get_now(&self) -> SystemTime {
+            SystemTime::UNIX_EPOCH.add(Duration::new(60, 0))
+        }
+    }
+
+    #[test]
+    fn gets_a_totp_value() {
+        let moving_factor = 55077978;
+        let totp = get_totp(SECRET, moving_factor);
+
+        assert_eq!(totp, 335913);
+    }
+
+    #[test]
+    fn validates_a_totp_value() {
+        let moving_factor = get_totp_moving_factor(&Clock::new());
+        let totp = get_totp(SECRET, moving_factor);
+        let account = get_test_account();
+
+        assert!(validate_totp(&account, totp).is_ok());
+    }
+
+    #[test]
+    fn validate_totp_looks_ahead_and_behind() {
+        let moving_factor = get_totp_moving_factor(&Clock::new());
+        let totp_a = get_totp(SECRET, moving_factor - 2);
+        let totp_b = get_totp(SECRET, moving_factor + 2);
+        let account = get_test_account();
+
+        assert!(validate_totp(&account, totp_a).is_ok());
+        assert!(validate_totp(&account, totp_b).is_ok());
+    }
+
+    #[test]
+    fn validate_totp_fails_when_wrong() {
+        let moving_factor = 55077978; // "distant" past
+        let totp = get_totp(SECRET, moving_factor);
+        let account = get_test_account();
+
+        assert!(validate_totp(&account, totp).is_err());
+    }
+
+    #[test]
+    fn gets_moving_factor_from_system_time() {
+        let moving_factor = get_totp_moving_factor(&MockClock::new());
+        assert_eq!(moving_factor, 2);
+    }
 }
