@@ -1,7 +1,7 @@
 use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
-use crate::account::AccountStore;
+use crate::account::AccountStoreOperations;
 
 pub fn subcommand() -> Command<'static> {
     command!(CommandType::Delete.as_str())
@@ -9,7 +9,7 @@ pub fn subcommand() -> Command<'static> {
         .args(&[arg!(-a --account <NAME> "Account name to delete").required(true)])
 }
 
-pub fn run_delete(delete_args: &ArgMatches, mut account_store: AccountStore) {
+pub fn run_delete(delete_args: &ArgMatches, mut account_store: impl AccountStoreOperations) {
     let account_name = match delete_args.value_of("account") {
         Some(account_name) => account_name,
         _ => {

@@ -1,7 +1,7 @@
 use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
-use crate::account::{Account, AccountStore, OtpType};
+use crate::account::{Account, AccountStoreOperations, OtpType};
 use crate::utils::is_base32_key;
 
 pub fn subcommand() -> Command<'static> {
@@ -16,7 +16,7 @@ pub fn subcommand() -> Command<'static> {
         ])
 }
 
-pub fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
+pub fn run_add(add_args: &ArgMatches, mut account_store: impl AccountStoreOperations) {
     let (account_name, key) = match (add_args.value_of("account"), add_args.value_of("key")) {
         (Some(account_name), Some(key)) => (account_name, key),
         _ => {
@@ -30,8 +30,8 @@ pub fn run_add(add_args: &ArgMatches, mut account_store: AccountStore) {
     } else {
         let is_hotp = add_args.is_present("hotp");
         let otp_type = match is_hotp {
-           true => OtpType::HOTP(Some(0)),
-		   false => OtpType::TOTP,
+            true => OtpType::HOTP(Some(0)),
+            false => OtpType::TOTP,
         };
         let account = Account::new(String::from(key), otp_type);
         account_store.add(account_name.to_string(), account);

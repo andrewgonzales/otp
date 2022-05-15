@@ -1,7 +1,7 @@
 use clap::command;
 use std::io;
 
-use crate::account::AccountStore;
+use crate::account::{AccountStore, AccountStoreOperations};
 use crate::utils::validate_pin;
 
 mod account;
@@ -46,9 +46,9 @@ fn main() {
     let matches = cmd.get_matches();
     match matches.subcommand() {
         Some(("generate", generate_args)) => cmd::generate::run_generate(generate_args),
-        Some(("list", _)) => cmd::list::run_list(account_store),
+        Some(("list", _)) => cmd::list::run_list(&account_store),
         Some(("validate", validate_args)) => {
-            cmd::validate::run_validate(validate_args, account_store)
+            cmd::validate::run_validate(validate_args, &account_store)
         }
         // These subcommands require a pin
         Some(subcommand) => {
@@ -67,7 +67,7 @@ fn main() {
     };
 }
 
-fn check_pin(account_store: &AccountStore) -> Result<(), String> {
+fn check_pin(account_store: &impl AccountStoreOperations) -> Result<(), String> {
     if !account_store.is_initialized() {
         return Err(String::from(
             "No existing pin found. Run the 'init' command.",
@@ -81,7 +81,7 @@ fn check_pin(account_store: &AccountStore) -> Result<(), String> {
                 .read_line(&mut pin)
                 .expect("Failed to read line");
 
-            match validate_pin(pin.trim(), &account_store) {
+            match validate_pin(pin.trim(), account_store) {
                 Ok(_) => break,
                 Err(err) => println!("{}", err),
             }

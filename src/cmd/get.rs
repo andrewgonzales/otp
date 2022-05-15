@@ -1,7 +1,7 @@
 use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
-use crate::account::{AccountStore, OtpType};
+use crate::account::{AccountStoreOperations, OtpType};
 use crate::hotp::get_hotp;
 use crate::totp::{get_totp, get_totp_moving_factor, Clock};
 
@@ -13,7 +13,7 @@ pub fn subcommand() -> Command<'static> {
         ])
 }
 
-pub fn run_get(get_args: &ArgMatches, mut account_store: AccountStore) {
+pub fn run_get(get_args: &ArgMatches, mut account_store: impl AccountStoreOperations) {
     let account_name = match get_args.value_of("account") {
         Some(account_name) => account_name,
         _ => {

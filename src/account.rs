@@ -160,6 +160,18 @@ pub struct AccountStore {
     secrets: Secrets,
 }
 
+pub trait AccountStoreOperations {
+    fn get(&self, key: &str) -> Option<&Account>;
+    fn list(&self) -> Vec<String>;
+    fn add(&mut self, account_name: String, account: Account);
+    fn delete(&mut self, account_name: &str) -> Option<Account>;
+    fn is_initialized(&self) -> bool;
+    fn save(&self) -> Result<()>;
+    fn set_counter(&mut self, key: &str, counter: i32);
+    fn set_secrets(&mut self, hash: &str);
+    fn validate_pin(&self, pin: &str) -> bool;
+}
+
 impl AccountStore {
     pub fn new() -> Result<AccountStore> {
         let secrets = load_secrets()?;
@@ -170,28 +182,30 @@ impl AccountStore {
 
         Ok(AccountStore { accounts, secrets })
     }
+}
 
-    pub fn get(&self, account_name: &str) -> Option<&Account> {
+impl AccountStoreOperations for AccountStore {
+    fn get(&self, account_name: &str) -> Option<&Account> {
         self.accounts.get(account_name)
     }
 
-    pub fn list(&self) -> Vec<String> {
+    fn list(&self) -> Vec<String> {
         self.accounts.keys().cloned().collect()
     }
 
-    pub fn add(&mut self, account_name: String, account: Account) {
+    fn add(&mut self, account_name: String, account: Account) {
         self.accounts.insert(account_name, account);
     }
 
-    pub fn delete(&mut self, account_name: &str) -> Option<Account> {
+    fn delete(&mut self, account_name: &str) -> Option<Account> {
         self.accounts.remove(account_name)
     }
 
-    pub fn is_initialized(&self) -> bool {
+    fn is_initialized(&self) -> bool {
         self.secrets.hash.is_some()
     }
 
-    pub fn save(&self) -> Result<()> {
+    fn save(&self) -> Result<()> {
         // Encrypt and serialize accounts
         let account_contents = match toml::to_string(&self.accounts) {
             Ok(content) => content,
@@ -248,7 +262,7 @@ impl AccountStore {
         Ok(())
     }
 
-    pub fn set_counter(&mut self, account_name: &str, counter: i32) {
+    fn set_counter(&mut self, account_name: &str, counter: i32) {
         let account = self.accounts.get_mut(account_name);
         match account {
             Some(account) => account.otp_type = OtpType::HOTP(Some(counter)),
@@ -256,14 +270,14 @@ impl AccountStore {
         }
     }
 
-    pub fn set_secrets(&mut self, hash: &str) {
+    fn set_secrets(&mut self, hash: &str) {
         self.secrets = Secrets {
             hash: Some(String::from(hash)),
             nonce: None,
         };
     }
 
-    pub fn validate_pin(&self, pin: &str) -> bool {
+    fn validate_pin(&self, pin: &str) -> bool {
         let stored_pin = match self.secrets.hash.clone() {
             Some(pin) => pin,
             None => return false,

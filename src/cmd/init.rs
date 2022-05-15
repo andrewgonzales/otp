@@ -1,7 +1,7 @@
 use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
-use crate::account::AccountStore;
+use crate::account::AccountStoreOperations;
 use crate::crypto::encrypt_pw;
 
 pub fn subcommand() -> Command<'static> {
@@ -10,7 +10,7 @@ pub fn subcommand() -> Command<'static> {
         .args(&[arg!(-p --pin <PIN> "4-6 character secret pin").required(true)])
 }
 
-pub fn run_init(init_args: &ArgMatches, mut account_store: AccountStore) {
+pub fn run_init(init_args: &ArgMatches, mut account_store: impl AccountStoreOperations) {
     let pin = match init_args.value_of("pin") {
         Some(pin) => pin,
         _ => {
@@ -29,7 +29,7 @@ pub fn run_init(init_args: &ArgMatches, mut account_store: AccountStore) {
 
     account_store.set_secrets(&encrypted_pin);
 
-	match account_store.save() {
+    match account_store.save() {
         Ok(_) => println!("Client successfully initialized"),
         Err(err) => eprintln!("{}", err),
     }

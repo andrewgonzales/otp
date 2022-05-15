@@ -2,7 +2,7 @@ use data_encoding::BASE32_NOPAD;
 use rand::rngs::OsRng;
 use rand::RngCore;
 
-use crate::account::AccountStore;
+use crate::account::AccountStoreOperations;
 
 // Generate a 20 byte random base32 string
 pub fn generate_secret() -> String {
@@ -27,7 +27,7 @@ pub fn is_base32_key(value: &str) -> Result<(), String> {
     }
 }
 
-pub fn validate_pin(pin: &str, account_store: &AccountStore) -> Result<(), String> {
+pub fn validate_pin(pin: &str, account_store: &impl AccountStoreOperations) -> Result<(), String> {
     if pin.len() < 4 || pin.len() > 6 {
         return Err(String::from("PIN must be between 4 and 6 characters"));
     }
@@ -48,19 +48,19 @@ pub fn validate_pin(pin: &str, account_store: &AccountStore) -> Result<(), Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::account::create_empty_store;
-	use crate::crypto::encrypt_pw;
+    use crate::account::{create_empty_store, AccountStore};
+    use crate::crypto::encrypt_pw;
 
     fn get_mock_store(include_hash: bool) -> AccountStore {
         let mut account_store = create_empty_store();
-		match include_hash {
-			true => {
-				let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
-				account_store.set_secrets(&hash);
-				account_store
-			},
-			false => account_store,
-		}
+        match include_hash {
+            true => {
+                let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
+                account_store.set_secrets(&hash);
+                account_store
+            }
+            false => account_store,
+        }
     }
 
     #[test]
@@ -91,7 +91,7 @@ mod tests {
             Err(String::from("PIN must be between 4 and 6 characters"))
         );
 
-		let account_store_2 = get_mock_store(false);
+        let account_store_2 = get_mock_store(false);
         assert_eq!(
             validate_pin("1234567", &account_store_2),
             Err(String::from("PIN must be between 4 and 6 characters"))
@@ -118,12 +118,9 @@ mod tests {
         );
     }
 
-	#[test]
-	fn validate_pin_returns_ok_if_pin_is_valid() {
-		let account_store = get_mock_store(true);
-		assert_eq!(
-			validate_pin("123456", &account_store),
-			Ok(())
-		);
-	}
+    #[test]
+    fn validate_pin_returns_ok_if_pin_is_valid() {
+        let account_store = get_mock_store(true);
+        assert_eq!(validate_pin("123456", &account_store), Ok(()));
+    }
 }

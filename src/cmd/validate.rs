@@ -1,7 +1,7 @@
 use clap::{arg, command, ArgMatches, Command};
 
 use super::CommandType;
-use crate::account::{AccountStore, OtpType};
+use crate::account::{AccountStoreOperations, OtpType};
 use crate::hotp::validate_hotp;
 use crate::totp::validate_totp;
 
@@ -15,7 +15,7 @@ pub fn subcommand() -> Command<'static> {
         ])
 }
 
-pub fn run_validate(validate_args: &ArgMatches, account_store: AccountStore) {
+pub fn run_validate(validate_args: &ArgMatches, account_store: &impl AccountStoreOperations) {
     let (account_name, token) = match (
         validate_args.value_of("account"),
         validate_args.value_of("token"),
