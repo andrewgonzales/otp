@@ -48,7 +48,8 @@ pub fn validate_pin(pin: &str, account_store: &impl AccountStoreOperations) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::account::{create_empty_store, AccountStore};
+    use crate::account::AccountStore;
+	use crate::account::tests::create_empty_store;
     use crate::crypto::encrypt_pw;
 
     fn get_mock_store(include_hash: bool) -> AccountStore {

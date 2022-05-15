@@ -117,14 +117,14 @@ fn load_secrets() -> Result<Secrets> {
     Ok(secrets)
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum OtpType {
     HOTP(Option<i32>),
     TOTP,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Account {
     pub key: String,
     pub otp_type: OtpType,
@@ -161,7 +161,7 @@ pub struct AccountStore {
 }
 
 pub trait AccountStoreOperations {
-    fn get(&self, key: &str) -> Option<&Account>;
+	fn get(&self, key: &str) -> Option<&Account>;
     fn list(&self) -> Vec<String>;
     fn add(&mut self, account_name: String, account: Account);
     fn delete(&mut self, account_name: &str) -> Option<Account>;
@@ -184,26 +184,68 @@ impl AccountStore {
     }
 }
 
+macro_rules! account_store_read {
+    () => {
+        fn get(&self, account_name: &str) -> Option<&Account> {
+            self.accounts.get(account_name)
+        }
+
+        fn list(&self) -> Vec<String> {
+            self.accounts.keys().cloned().collect()
+        }
+    };
+}
+
+macro_rules! account_store_mutate {
+    () => {
+        fn add(&mut self, account_name: String, account: Account) {
+            self.accounts.insert(account_name, account);
+        }
+
+        fn delete(&mut self, account_name: &str) -> Option<Account> {
+            self.accounts.remove(account_name)
+        }
+
+        fn set_counter(&mut self, account_name: &str, counter: i32) {
+            let account = self.accounts.get_mut(account_name);
+            match account {
+                Some(account) => account.otp_type = OtpType::HOTP(Some(counter)),
+                None => println!("Account not found: {}", account_name),
+            }
+        }
+
+        fn set_secrets(&mut self, hash: &str) {
+            self.secrets = Secrets {
+                hash: Some(String::from(hash)),
+                nonce: None,
+            };
+        }
+    };
+}
+
+macro_rules! account_store_password {
+    () => {
+        fn is_initialized(&self) -> bool {
+            self.secrets.hash.is_some()
+        }
+
+        fn validate_pin(&self, pin: &str) -> bool {
+            let stored_pin = match self.secrets.hash.clone() {
+                Some(pin) => pin,
+                None => return false,
+            };
+            let matches = decrypt_pw(&stored_pin, pin);
+            matches
+        }
+    };
+}
+
 impl AccountStoreOperations for AccountStore {
-    fn get(&self, account_name: &str) -> Option<&Account> {
-        self.accounts.get(account_name)
-    }
+    account_store_read!();
 
-    fn list(&self) -> Vec<String> {
-        self.accounts.keys().cloned().collect()
-    }
+    account_store_mutate!();
 
-    fn add(&mut self, account_name: String, account: Account) {
-        self.accounts.insert(account_name, account);
-    }
-
-    fn delete(&mut self, account_name: &str) -> Option<Account> {
-        self.accounts.remove(account_name)
-    }
-
-    fn is_initialized(&self) -> bool {
-        self.secrets.hash.is_some()
-    }
+    account_store_password!();
 
     fn save(&self) -> Result<()> {
         // Encrypt and serialize accounts
@@ -261,51 +303,51 @@ impl AccountStoreOperations for AccountStore {
 
         Ok(())
     }
-
-    fn set_counter(&mut self, account_name: &str, counter: i32) {
-        let account = self.accounts.get_mut(account_name);
-        match account {
-            Some(account) => account.otp_type = OtpType::HOTP(Some(counter)),
-            None => println!("Account not found: {}", account_name),
-        }
-    }
-
-    fn set_secrets(&mut self, hash: &str) {
-        self.secrets = Secrets {
-            hash: Some(String::from(hash)),
-            nonce: None,
-        };
-    }
-
-    fn validate_pin(&self, pin: &str) -> bool {
-        let stored_pin = match self.secrets.hash.clone() {
-            Some(pin) => pin,
-            None => return false,
-        };
-        let matches = decrypt_pw(&stored_pin, pin);
-        matches
-    }
 }
 
-// Exported for testing
 #[cfg(test)]
-pub fn create_empty_store() -> AccountStore {
-    AccountStore {
-        accounts: BTreeMap::new(),
-        secrets: Secrets {
-            hash: None,
-            nonce: None,
-        },
+pub struct MockAccountStore {
+    accounts: BTreeMap<String, Account>,
+    secrets: Secrets,
+}
+
+#[cfg(test)]
+impl AccountStoreOperations for MockAccountStore {
+    account_store_read!();
+
+    account_store_mutate!();
+
+    account_store_password!();
+
+    fn save(&self) -> Result<()> {
+        println!("MockAccountStore saving");
+        Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::crypto::encrypt_pw;
 
-    fn get_mock_store() -> AccountStore {
-        let mut store = create_empty_store();
+    pub fn create_empty_store() -> AccountStore {
+        AccountStore {
+            accounts: BTreeMap::new(),
+            secrets: Secrets {
+                hash: None,
+                nonce: None,
+            },
+        }
+    }
+
+    pub fn get_mock_store() -> MockAccountStore {
+        let mut store = MockAccountStore {
+            accounts: BTreeMap::new(),
+            secrets: Secrets {
+                hash: None,
+                nonce: None,
+            },
+        };
         let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
         store.set_secrets(&hash);
         store.add(
