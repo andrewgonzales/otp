@@ -1,5 +1,5 @@
 use clap::command;
-use std::io;
+use std::io::{self, Stdout, Stderr, Write};
 
 use crate::account::{AccountStore, AccountStoreOperations};
 use crate::utils::validate_pin;
@@ -29,8 +29,41 @@ TOTP https://datatracker.ietf.org/doc/html/rfc6238
 // time-based moving factor based on system time
 */
 
+pub struct OtpWriter {
+	pub out: Stdout,
+	pub err: Stderr,
+}
+
+impl OtpWriter{
+	fn new() -> Self {
+		OtpWriter { out: io::stdout(), err: io::stderr() }
+	}
+}
+
+pub trait OutErr {
+	fn write_err(&mut self, s: &str);
+	fn write(&mut self, s: &str);
+}
+
+impl OutErr for OtpWriter {
+	fn write_err(&mut self, s: &str) {
+		match self.err.write_all(s.as_bytes()) {
+			Ok(_) => (),
+			Err(e) => eprintln!("{}", e),
+		}
+	}
+
+	fn write(&mut self, s: &str) {
+		match self.out.write_all(s.as_bytes()) {
+			Ok(_) => (),
+			Err(e) => eprintln!("{}", e),
+		}
+	}
+}
+
 fn main() {
     let account_store = AccountStore::new().expect("Unable to initialize store");
+	let mut writer = OtpWriter::new();
     let cmd = command!("otp")
         .about("Time-based and counter-based one-time password generator")
         .version("v0.1.0")
@@ -55,9 +88,9 @@ fn main() {
             match check_pin(&account_store) {
                 Ok(_) => match subcommand {
                     ("init", init_args) => cmd::init::run_init(init_args, account_store),
-                    ("add", add_args) => cmd::add::run_add(add_args, account_store),
-                    ("delete", delete_args) => cmd::delete::run_delete(delete_args, account_store),
-                    ("get", get_args) => cmd::get::run_get(get_args, account_store),
+                    ("add", add_args) => cmd::add::run_add(add_args, account_store, &mut writer),
+					("delete", delete_args) => cmd::delete::run_delete(delete_args, account_store),
+					("get", get_args) => cmd::get::run_get(get_args, account_store),
                     _ => println!("Unknown subcommand"),
                 },
                 Err(err) => println!("{}", err),
