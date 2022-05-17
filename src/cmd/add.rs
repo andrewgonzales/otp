@@ -19,7 +19,7 @@ pub fn subcommand() -> Command<'static> {
 
 pub fn run_add<W>(
     add_args: &ArgMatches,
-    mut account_store: impl AccountStoreOperations,
+    account_store: &mut impl AccountStoreOperations,
     writer: &mut W,
 ) where
     W: OutErr,
@@ -55,9 +55,11 @@ pub fn run_add<W>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::{ArgMatches, Command};
     use crate::account::tests::get_mock_store;
+    use clap::{ArgMatches, Command};
 
+    const ACCOUNT_NAME: &str = "test_account";
+    const HOTP_KEY: &str = "FGCZ6RHPYYYFOEKRQNNF3Z2JKKANZXNX";
     const TOTP_KEY: &str = "NDVP6W4K6HKVUQJUY4F627PCSYUVQSNJF4BBTH2BQT24LONOLSXQ";
 
     pub struct MockOtpWriter {
@@ -97,30 +99,90 @@ mod tests {
         Ok(add_args)
     }
 
-	#[test]
+    #[test]
     fn adds_an_account() {
-        let store = get_mock_store();
+        let mut store = get_mock_store();
         let mut writer = MockOtpWriter::new();
 
-        let arg_vec = vec!["otp", "add", "-a", "godaddy", "-k", TOTP_KEY];
+        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", TOTP_KEY];
         let add_args = get_add_args(&arg_vec).unwrap();
 
-        run_add(&add_args, store, &mut writer);
+        run_add(&add_args, &mut store, &mut writer);
 
-        let expected_output = format!("Account \"{}\" successfully created", "godaddy");
+        assert_eq!(store.get(ACCOUNT_NAME).unwrap().key, TOTP_KEY);
+        assert_eq!(store.get(ACCOUNT_NAME).unwrap().otp_type, OtpType::TOTP);
+
+        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME);
         assert_eq!(writer.out, expected_output.as_bytes());
         assert_eq!(writer.err, Vec::new());
     }
 
     #[test]
+    fn adds_an_account_with_hotp() {
+        let mut store = get_mock_store();
+        let mut writer = MockOtpWriter::new();
+
+        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", HOTP_KEY, "-c"];
+        let add_args = get_add_args(&arg_vec).unwrap();
+
+        run_add(&add_args, &mut store, &mut writer);
+
+        assert_eq!(store.get(ACCOUNT_NAME).unwrap().key, HOTP_KEY);
+        assert_eq!(
+            store.get(ACCOUNT_NAME).unwrap().otp_type,
+            OtpType::HOTP(Some(0))
+        );
+
+        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME);
+        assert_eq!(writer.out, expected_output.as_bytes());
+        assert_eq!(writer.err, Vec::new());
+    }
+
+    #[test]
+    #[should_panic]
+    fn requires_account_name() {
+        let arg_vec = vec!["otp", "add", "-k", TOTP_KEY];
+        let add_args = get_add_args(&arg_vec);
+
+        assert!(add_args.is_err());
+
+        let err = add_args.unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("the following required arguments were not provided: account"),
+            "{}",
+            err
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn requires_key() {
+        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME];
+        let add_args = get_add_args(&arg_vec);
+
+        assert!(add_args.is_err());
+
+        let err = add_args.unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("the following required arguments were not provided: key"),
+            "{}",
+            err
+        );
+    }
+
+    #[test]
     fn errors_if_account_exists() {
-        let store = get_mock_store();
+        let mut store = get_mock_store();
         let mut writer = MockOtpWriter::new();
 
         let arg_vec = vec!["otp", "add", "-a", "google", "-k", TOTP_KEY];
         let add_args = get_add_args(&arg_vec).unwrap();
 
-        run_add(&add_args, store, &mut writer);
+        run_add(&add_args, &mut store, &mut writer);
 
         assert_eq!(writer.err, "Account already exists\n".as_bytes());
         assert_eq!(writer.out, Vec::new());
@@ -141,5 +203,24 @@ mod tests {
             "{}",
             err
         );
+    }
+
+    #[test]
+    fn errors_on_save_failure() {
+        let mut store = get_mock_store();
+        let mut writer = MockOtpWriter::new();
+
+        store.set_should_save_error(true);
+
+        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", TOTP_KEY];
+        let add_args = get_add_args(&arg_vec).unwrap();
+
+        run_add(&add_args, &mut store, &mut writer);
+
+        assert_eq!(
+            String::from_utf8_lossy(&writer.err.to_vec()),
+            "MockAccountStore failed to save"
+        );
+        assert_eq!(writer.out, Vec::new());
     }
 }

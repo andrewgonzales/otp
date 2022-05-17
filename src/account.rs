@@ -117,14 +117,14 @@ fn load_secrets() -> Result<Secrets> {
     Ok(secrets)
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum OtpType {
     HOTP(Option<i32>),
     TOTP,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Account {
     pub key: String,
     pub otp_type: OtpType,
@@ -161,7 +161,7 @@ pub struct AccountStore {
 }
 
 pub trait AccountStoreOperations {
-	fn get(&self, key: &str) -> Option<&Account>;
+    fn get(&self, key: &str) -> Option<&Account>;
     fn list(&self) -> Vec<String>;
     fn add(&mut self, account_name: String, account: Account);
     fn delete(&mut self, account_name: &str) -> Option<Account>;
@@ -309,6 +309,14 @@ impl AccountStoreOperations for AccountStore {
 pub struct MockAccountStore {
     accounts: BTreeMap<String, Account>,
     secrets: Secrets,
+    should_save_error: bool,
+}
+
+#[cfg(test)]
+impl MockAccountStore {
+    pub fn set_should_save_error(&mut self, should_save_error: bool) {
+        self.should_save_error = should_save_error;
+    }
 }
 
 #[cfg(test)]
@@ -321,6 +329,12 @@ impl AccountStoreOperations for MockAccountStore {
 
     fn save(&self) -> Result<()> {
         println!("MockAccountStore saving");
+        if self.should_save_error {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "MockAccountStore failed to save",
+            ));
+        }
         Ok(())
     }
 }
@@ -347,6 +361,7 @@ pub mod tests {
                 hash: None,
                 nonce: None,
             },
+            should_save_error: false,
         };
         let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
         store.set_secrets(&hash);
