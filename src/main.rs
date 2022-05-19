@@ -1,15 +1,19 @@
 use clap::command;
-use std::io::{self, Stderr, Stdout, Write};
+use std::io;
 
 use crate::account::{AccountStore, AccountStoreOperations};
 use crate::utils::validate_pin;
+use crate::writer::OtpWriter;
 
 mod account;
 mod cmd;
 mod crypto;
 mod hotp;
+#[cfg(test)]
+mod tests;
 mod totp;
 mod utils;
+mod writer;
 
 /*
 HOTP https://datatracker.ietf.org/doc/html/rfc4226
@@ -28,41 +32,6 @@ TOTP https://datatracker.ietf.org/doc/html/rfc6238
 // uses HOTP with SHA-256 digest
 // time-based moving factor based on system time
 */
-
-pub struct OtpWriter {
-    pub out: Stdout,
-    pub err: Stderr,
-}
-
-impl OtpWriter {
-    fn new() -> Self {
-        OtpWriter {
-            out: io::stdout(),
-            err: io::stderr(),
-        }
-    }
-}
-
-pub trait OutErr {
-    fn write_err(&mut self, s: &str);
-    fn write(&mut self, s: &str);
-}
-
-impl OutErr for OtpWriter {
-    fn write_err(&mut self, s: &str) {
-        match self.err.write_all(s.as_bytes()) {
-            Ok(_) => (),
-            Err(e) => eprintln!("{}", e),
-        }
-    }
-
-    fn write(&mut self, s: &str) {
-        match self.out.write_all(s.as_bytes()) {
-            Ok(_) => (),
-            Err(e) => eprintln!("{}", e),
-        }
-    }
-}
 
 fn main() {
     let mut account_store = AccountStore::new().expect("Unable to initialize store");

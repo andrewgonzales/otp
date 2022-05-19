@@ -137,7 +137,7 @@ impl Account {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Secrets {
+pub struct Secrets {
     hash: Option<String>,
     nonce: Option<Vec<u8>>,
 }

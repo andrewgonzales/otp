@@ -1,9 +1,9 @@
 use clap::{arg, command, ArgMatches, Command};
 
-use super::super::OutErr;
 use super::CommandType;
 use crate::account::{Account, AccountStoreOperations, OtpType};
 use crate::utils::is_base32_key;
+use crate::writer::OutErr;
 
 pub fn subcommand() -> Command<'static> {
     command!(CommandType::Add.as_str())
@@ -56,48 +56,9 @@ pub fn run_add<W>(
 mod tests {
     use super::*;
     use crate::account::tests::get_mock_store;
-    use clap::{ArgMatches, Command};
-
-    const ACCOUNT_NAME: &str = "test_account";
-    const HOTP_KEY: &str = "FGCZ6RHPYYYFOEKRQNNF3Z2JKKANZXNX";
-    const TOTP_KEY: &str = "NDVP6W4K6HKVUQJUY4F627PCSYUVQSNJF4BBTH2BQT24LONOLSXQ";
-
-    pub struct MockOtpWriter {
-        pub out: Vec<u8>,
-        pub err: Vec<u8>,
-    }
-
-    impl MockOtpWriter {
-        fn new() -> Self {
-            MockOtpWriter {
-                out: Vec::new(),
-                err: Vec::new(),
-            }
-        }
-    }
-
-    impl OutErr for MockOtpWriter {
-        fn write_err(&mut self, s: &str) {
-            self.err = s.as_bytes().to_vec();
-        }
-
-        fn write(&mut self, s: &str) {
-            self.out = s.as_bytes().to_vec();
-        }
-    }
-
-    fn get_add_args(arg_vec: &Vec<&str>) -> Result<ArgMatches, clap::Error> {
-        let matches = Command::new("otp")
-            .subcommand(subcommand())
-            .try_get_matches_from(arg_vec)?;
-
-        let arg_matches = matches.subcommand().unwrap();
-        let add_args = match arg_matches {
-            ("add", add_args) => add_args.clone(),
-            _ => panic!("Expected add subcommand"),
-        };
-        Ok(add_args)
-    }
+    use crate::tests::constants::*;
+    use crate::tests::mocks::*;
+    use crate::tests::utils::get_cmd_args;
 
     #[test]
     fn adds_an_account() {
@@ -105,7 +66,7 @@ mod tests {
         let mut writer = MockOtpWriter::new();
 
         let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", TOTP_KEY];
-        let add_args = get_add_args(&arg_vec).unwrap();
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
@@ -123,7 +84,7 @@ mod tests {
         let mut writer = MockOtpWriter::new();
 
         let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", HOTP_KEY, "-c"];
-        let add_args = get_add_args(&arg_vec).unwrap();
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
@@ -142,7 +103,7 @@ mod tests {
     #[should_panic]
     fn requires_account_name() {
         let arg_vec = vec!["otp", "add", "-k", TOTP_KEY];
-        let add_args = get_add_args(&arg_vec);
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec);
 
         assert!(add_args.is_err());
 
@@ -160,7 +121,7 @@ mod tests {
     #[should_panic]
     fn requires_key() {
         let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME];
-        let add_args = get_add_args(&arg_vec);
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec);
 
         assert!(add_args.is_err());
 
@@ -180,7 +141,7 @@ mod tests {
         let mut writer = MockOtpWriter::new();
 
         let arg_vec = vec!["otp", "add", "-a", "google", "-k", TOTP_KEY];
-        let add_args = get_add_args(&arg_vec).unwrap();
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
@@ -191,7 +152,7 @@ mod tests {
     #[test]
     fn validates_key_encoding() {
         let arg_vec = vec!["otp", "add", "-a", "google", "-k", "invalid-key!"];
-        let add_args = get_add_args(&arg_vec);
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec);
 
         assert!(add_args.is_err());
 
@@ -213,7 +174,7 @@ mod tests {
         store.set_should_save_error(true);
 
         let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", TOTP_KEY];
-        let add_args = get_add_args(&arg_vec).unwrap();
+        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
