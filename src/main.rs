@@ -51,7 +51,9 @@ fn main() {
 
     let matches = cmd.get_matches();
     match matches.subcommand() {
-        Some((gen_cmd, generate_args)) if gen_cmd == Generate.as_str() => cmd::generate::run_generate(generate_args),
+        Some((gen_cmd, generate_args)) if gen_cmd == Generate.as_str() => {
+            cmd::generate::run_generate(generate_args, &mut writer)
+        }
         Some((list_cmd, _)) if list_cmd == List.as_str() => cmd::list::run_list(&account_store),
         Some((val_cmd, validate_args)) if val_cmd == Validate.as_str() => {
             cmd::validate::run_validate(validate_args, &account_store)
