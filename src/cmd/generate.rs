@@ -22,7 +22,7 @@ where
         true => generate_secret(),
         false => generate_secret_32(),
     };
-    writer.write(&new_secret_key);
+    writer.write(&format!("{}\n", new_secret_key));
 }
 
 #[cfg(test)]
@@ -42,7 +42,8 @@ mod tests {
 
         run_generate(&generate_args, &mut writer);
 
-        assert_eq!(writer.out.len(), HOTP_KEY.as_bytes().len());
+        // add one byte for newline
+        assert_eq!(writer.out.len(), HOTP_KEY.as_bytes().len() + 1);
         assert_eq!(writer.err, Vec::new());
     }
 
@@ -55,7 +56,8 @@ mod tests {
 
         run_generate(&generate_args, &mut writer);
 
-        assert_eq!(writer.out.len(), TOTP_KEY.as_bytes().len());
+        // add one byte for newline
+        assert_eq!(writer.out.len(), TOTP_KEY.as_bytes().len() + 1);
         assert_eq!(writer.err, Vec::new());
     }
 }
