@@ -2,6 +2,7 @@ use clap::command;
 use std::io;
 
 use crate::account::{AccountStore, AccountStoreOperations};
+use crate::cmd::CommandType::{Add, Delete, Generate, Get, Init, List, Validate};
 use crate::utils::validate_pin;
 use crate::writer::OtpWriter;
 
@@ -50,21 +51,27 @@ fn main() {
 
     let matches = cmd.get_matches();
     match matches.subcommand() {
-        Some(("generate", generate_args)) => cmd::generate::run_generate(generate_args),
-        Some(("list", _)) => cmd::list::run_list(&account_store),
-        Some(("validate", validate_args)) => {
+        Some((gen_cmd, generate_args)) if gen_cmd == Generate.as_str() => cmd::generate::run_generate(generate_args),
+        Some((list_cmd, _)) if list_cmd == List.as_str() => cmd::list::run_list(&account_store),
+        Some((val_cmd, validate_args)) if val_cmd == Validate.as_str() => {
             cmd::validate::run_validate(validate_args, &account_store)
         }
         // These subcommands require a pin
         Some(subcommand) => {
             match check_pin(&account_store) {
                 Ok(_) => match subcommand {
-                    ("init", init_args) => cmd::init::run_init(init_args, account_store),
-                    ("add", add_args) => {
+                    (init_cmd, init_args) if init_cmd == Init.as_str() => {
+                        cmd::init::run_init(init_args, account_store)
+                    }
+                    (add_cmd, add_args) if add_cmd == Add.as_str() => {
                         cmd::add::run_add(add_args, &mut account_store, &mut writer)
                     }
-                    ("delete", delete_args) => cmd::delete::run_delete(delete_args, account_store),
-                    ("get", get_args) => cmd::get::run_get(get_args, account_store),
+                    (delete_cmd, delete_args) if delete_cmd == Delete.as_str() => {
+                        cmd::delete::run_delete(delete_args, &mut account_store, &mut writer)
+                    }
+                    (get_cmd, get_args) if get_cmd == Get.as_str() => {
+                        cmd::get::run_get(get_args, account_store)
+                    }
                     _ => println!("Unknown subcommand"),
                 },
                 Err(err) => println!("{}", err),

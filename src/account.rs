@@ -343,6 +343,7 @@ impl AccountStoreOperations for MockAccountStore {
 pub mod tests {
     use super::*;
     use crate::crypto::encrypt_pw;
+    use crate::tests::constants::{ACCOUNT_NAME_1, ACCOUNT_NAME_2};
 
     pub fn create_empty_store() -> AccountStore {
         AccountStore {
@@ -366,11 +367,11 @@ pub mod tests {
         let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
         store.set_secrets(&hash);
         store.add(
-            String::from("github"),
+            String::from(ACCOUNT_NAME_1),
             Account::new(String::from("key-1"), OtpType::HOTP(Some(0))),
         );
         store.add(
-            String::from("google"),
+            String::from(ACCOUNT_NAME_2),
             Account::new(String::from("key-2"), OtpType::TOTP),
         );
         store
@@ -394,9 +395,9 @@ pub mod tests {
     #[test]
     fn deletes_an_account() {
         let mut store = get_mock_store();
-        store.delete("github");
+        store.delete(ACCOUNT_NAME_1);
 
-        assert_eq!(store.get("github"), None);
+        assert_eq!(store.get(ACCOUNT_NAME_1), None);
     }
 
     #[test]
@@ -404,7 +405,7 @@ pub mod tests {
         let store = get_mock_store();
         let accounts = store.list();
 
-        assert_eq!(accounts, vec!["github", "google"]);
+        assert_eq!(accounts, vec![ACCOUNT_NAME_1, ACCOUNT_NAME_2]);
     }
 
     #[test]
@@ -424,10 +425,10 @@ pub mod tests {
     #[test]
     fn sets_counter_value() {
         let mut store = get_mock_store();
-        store.set_counter("github", 101);
+        store.set_counter(ACCOUNT_NAME_1, 101);
 
         assert_eq!(
-            store.get("github"),
+            store.get(ACCOUNT_NAME_1),
             Some(&Account {
                 key: String::from("key-1"),
                 otp_type: OtpType::HOTP(Some(101)),

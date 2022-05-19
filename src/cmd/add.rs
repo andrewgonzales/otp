@@ -56,6 +56,7 @@ pub fn run_add<W>(
 mod tests {
     use super::*;
     use crate::account::tests::get_mock_store;
+    use crate::cmd::CommandType::Add;
     use crate::tests::constants::*;
     use crate::tests::mocks::*;
     use crate::tests::utils::get_cmd_args;
@@ -65,15 +66,15 @@ mod tests {
         let mut store = get_mock_store();
         let mut writer = MockOtpWriter::new();
 
-        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", TOTP_KEY];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
+        let arg_vec = vec!["otp", Add.as_str(), "-a", ACCOUNT_NAME_3, "-k", TOTP_KEY];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
-        assert_eq!(store.get(ACCOUNT_NAME).unwrap().key, TOTP_KEY);
-        assert_eq!(store.get(ACCOUNT_NAME).unwrap().otp_type, OtpType::TOTP);
+        assert_eq!(store.get(ACCOUNT_NAME_3).unwrap().key, TOTP_KEY);
+        assert_eq!(store.get(ACCOUNT_NAME_3).unwrap().otp_type, OtpType::TOTP);
 
-        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME);
+        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME_3);
         assert_eq!(writer.out, expected_output.as_bytes());
         assert_eq!(writer.err, Vec::new());
     }
@@ -83,18 +84,26 @@ mod tests {
         let mut store = get_mock_store();
         let mut writer = MockOtpWriter::new();
 
-        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", HOTP_KEY, "-c"];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
+        let arg_vec = vec![
+            "otp",
+            Add.as_str(),
+            "-a",
+            ACCOUNT_NAME_3,
+            "-k",
+            HOTP_KEY,
+            "-c",
+        ];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
-        assert_eq!(store.get(ACCOUNT_NAME).unwrap().key, HOTP_KEY);
+        assert_eq!(store.get(ACCOUNT_NAME_3).unwrap().key, HOTP_KEY);
         assert_eq!(
-            store.get(ACCOUNT_NAME).unwrap().otp_type,
+            store.get(ACCOUNT_NAME_3).unwrap().otp_type,
             OtpType::HOTP(Some(0))
         );
 
-        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME);
+        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME_3);
         assert_eq!(writer.out, expected_output.as_bytes());
         assert_eq!(writer.err, Vec::new());
     }
@@ -102,8 +111,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn requires_account_name() {
-        let arg_vec = vec!["otp", "add", "-k", TOTP_KEY];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec);
+        let arg_vec = vec!["otp", Add.as_str(), "-k", TOTP_KEY];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec);
 
         assert!(add_args.is_err());
 
@@ -120,8 +129,8 @@ mod tests {
     #[test]
     #[should_panic]
     fn requires_key() {
-        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec);
+        let arg_vec = vec!["otp", Add.as_str(), "-a", ACCOUNT_NAME_1];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec);
 
         assert!(add_args.is_err());
 
@@ -140,8 +149,8 @@ mod tests {
         let mut store = get_mock_store();
         let mut writer = MockOtpWriter::new();
 
-        let arg_vec = vec!["otp", "add", "-a", "google", "-k", TOTP_KEY];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
+        let arg_vec = vec!["otp", Add.as_str(), "-a", ACCOUNT_NAME_1, "-k", TOTP_KEY];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
@@ -151,8 +160,8 @@ mod tests {
 
     #[test]
     fn validates_key_encoding() {
-        let arg_vec = vec!["otp", "add", "-a", "google", "-k", "invalid-key!"];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec);
+        let arg_vec = vec!["otp", Add.as_str(), "-a", "google", "-k", "invalid-key!"];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec);
 
         assert!(add_args.is_err());
 
@@ -173,8 +182,8 @@ mod tests {
 
         store.set_should_save_error(true);
 
-        let arg_vec = vec!["otp", "add", "-a", ACCOUNT_NAME, "-k", TOTP_KEY];
-        let add_args = get_cmd_args("add", subcommand(), &arg_vec).unwrap();
+        let arg_vec = vec!["otp", Add.as_str(), "-a", ACCOUNT_NAME_3, "-k", TOTP_KEY];
+        let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec).unwrap();
 
         run_add(&add_args, &mut store, &mut writer);
 
