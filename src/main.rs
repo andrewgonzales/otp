@@ -3,6 +3,7 @@ use std::io;
 
 use crate::account::{AccountStore, AccountStoreOperations};
 use crate::cmd::CommandType::{Add, Delete, Generate, Get, Init, List, Validate};
+use crate::totp::Clock;
 use crate::utils::validate_pin;
 use crate::writer::OtpWriter;
 
@@ -72,7 +73,7 @@ fn main() {
                         cmd::delete::run_delete(delete_args, &mut account_store, &mut writer)
                     }
                     (get_cmd, get_args) if get_cmd == Get.as_str() => {
-                        cmd::get::run_get(get_args, account_store)
+                        cmd::get::run_get(get_args, &mut account_store, &mut writer, &Clock::new())
                     }
                     _ => println!("Unknown subcommand"),
                 },

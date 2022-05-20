@@ -1,3 +1,7 @@
+use std::ops::Add;
+use std::time::{Duration, SystemTime};
+
+use crate::totp::GetTime;
 use crate::writer::OutErr;
 
 pub struct MockOtpWriter {
@@ -21,5 +25,19 @@ impl OutErr for MockOtpWriter {
 
     fn write(&mut self, s: &str) {
         self.out = s.as_bytes().to_vec();
+    }
+}
+
+pub struct MockClock {}
+
+impl MockClock {
+    pub fn new() -> Self {
+        MockClock {}
+    }
+}
+
+impl GetTime for MockClock {
+    fn get_now(&self) -> SystemTime {
+        SystemTime::UNIX_EPOCH.add(Duration::new(60, 0))
     }
 }

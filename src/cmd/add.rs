@@ -75,7 +75,7 @@ mod tests {
         assert_eq!(store.get(ACCOUNT_NAME_3).unwrap().otp_type, OtpType::TOTP);
 
         let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME_3);
-        assert_eq!(writer.out, expected_output.as_bytes());
+        assert_eq!(String::from_utf8(writer.out).unwrap(), expected_output);
         assert_eq!(writer.err, Vec::new());
     }
 
@@ -104,7 +104,7 @@ mod tests {
         );
 
         let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME_3);
-        assert_eq!(writer.out, expected_output.as_bytes());
+        assert_eq!(String::from_utf8(writer.out).unwrap(), expected_output);
         assert_eq!(writer.err, Vec::new());
     }
 
@@ -154,7 +154,10 @@ mod tests {
 
         run_add(&add_args, &mut store, &mut writer);
 
-        assert_eq!(writer.err, "Account already exists\n".as_bytes());
+        assert_eq!(
+            String::from_utf8(writer.err).unwrap(),
+            "Account already exists\n"
+        );
         assert_eq!(writer.out, Vec::new());
     }
 
@@ -188,7 +191,7 @@ mod tests {
         run_add(&add_args, &mut store, &mut writer);
 
         assert_eq!(
-            String::from_utf8_lossy(&writer.err.to_vec()),
+            String::from_utf8(writer.err).unwrap(),
             "MockAccountStore failed to save"
         );
         assert_eq!(writer.out, Vec::new());

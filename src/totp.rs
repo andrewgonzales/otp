@@ -102,28 +102,14 @@ pub fn validate_totp(account: &Account, code: u32) -> Result<u32, Error> {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Add;
-
     use super::*;
+
+    use crate::tests::mocks::MockClock;
 
     const SECRET: &str = "BS5LINH6DJQY2Z4KEXCSUUBA5DXMVMXCXIDBSB2VSR42VJZBUMLQ";
 
     fn get_test_account() -> Account {
         Account::new(SECRET.to_string(), OtpType::TOTP)
-    }
-
-    struct MockClock {}
-
-    impl MockClock {
-        pub fn new() -> Self {
-            MockClock {}
-        }
-    }
-
-    impl GetTime for MockClock {
-        fn get_now(&self) -> SystemTime {
-            SystemTime::UNIX_EPOCH.add(Duration::new(60, 0))
-        }
     }
 
     #[test]

@@ -59,7 +59,7 @@ mod tests {
         assert_eq!(store.get(ACCOUNT_NAME_1), None);
 
         let expected_output = format!("Account successfully deleted\n");
-        assert_eq!(writer.out, expected_output.as_bytes());
+        assert_eq!(String::from_utf8(writer.out).unwrap(), expected_output);
         assert_eq!(writer.err, Vec::new());
     }
 
@@ -76,7 +76,7 @@ mod tests {
 
         let expected_output = format!("Account not found: {}\n", "not_an_account");
         assert_eq!(writer.out, Vec::new());
-        assert_eq!(writer.err, expected_output.as_bytes());
+        assert_eq!(String::from_utf8(writer.err).unwrap(), expected_output);
     }
 
     #[test]
@@ -110,7 +110,7 @@ mod tests {
         run_delete(&delete_args, &mut store, &mut writer);
 
         assert_eq!(
-            String::from_utf8_lossy(&writer.err.to_vec()),
+            String::from_utf8(writer.err).unwrap(),
             "MockAccountStore failed to save"
         );
         assert_eq!(writer.out, Vec::new());
