@@ -64,7 +64,7 @@ fn main() {
             match check_pin(&account_store) {
                 Ok(_) => match subcommand {
                     (init_cmd, init_args) if init_cmd == Init.as_str() => {
-                        cmd::init::run_init(init_args, account_store)
+                        cmd::init::run_init(init_args, &mut account_store, &mut writer)
                     }
                     (add_cmd, add_args) if add_cmd == Add.as_str() => {
                         cmd::add::run_add(add_args, &mut account_store, &mut writer)
