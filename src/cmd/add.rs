@@ -44,7 +44,7 @@ pub fn run_add<W>(
         account_store.add(account_name.to_string(), account);
         match account_store.save() {
             Ok(_) => writer.write(&format!(
-                "Account \"{}\" successfully created",
+                "Account \"{}\" successfully created\n",
                 account_name
             )),
             Err(err) => writer.write_err(&format!("{}", err)),
@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(store.get(ACCOUNT_NAME_3).unwrap().key, TOTP_KEY);
         assert_eq!(store.get(ACCOUNT_NAME_3).unwrap().otp_type, OtpType::TOTP);
 
-        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME_3);
+        let expected_output = format!("Account \"{}\" successfully created\n", ACCOUNT_NAME_3);
         assert_eq!(String::from_utf8(writer.out).unwrap(), expected_output);
         assert_eq!(writer.err, Vec::new());
     }
@@ -103,7 +103,7 @@ mod tests {
             OtpType::HOTP(Some(0))
         );
 
-        let expected_output = format!("Account \"{}\" successfully created", ACCOUNT_NAME_3);
+        let expected_output = format!("Account \"{}\" successfully created\n", ACCOUNT_NAME_3);
         assert_eq!(String::from_utf8(writer.out).unwrap(), expected_output);
         assert_eq!(writer.err, Vec::new());
     }

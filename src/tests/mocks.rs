@@ -20,11 +20,11 @@ impl MockOtpWriter {
 
 impl OutErr for MockOtpWriter {
     fn write_err(&mut self, s: &str) {
-        self.err = s.as_bytes().to_vec();
+		self.err.append(&mut s.as_bytes().to_vec());
     }
 
     fn write(&mut self, s: &str) {
-        self.out = s.as_bytes().to_vec();
+        self.out.append(&mut s.as_bytes().to_vec());
     }
 }
 
