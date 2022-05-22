@@ -20,7 +20,7 @@ impl MockOtpWriter {
 
 impl OutErr for MockOtpWriter {
     fn write_err(&mut self, s: &str) {
-		self.err.append(&mut s.as_bytes().to_vec());
+        self.err.append(&mut s.as_bytes().to_vec());
     }
 
     fn write(&mut self, s: &str) {
@@ -38,6 +38,6 @@ impl MockClock {
 
 impl GetTime for MockClock {
     fn get_now(&self) -> SystemTime {
-        SystemTime::UNIX_EPOCH.add(Duration::new(60, 0))
+        SystemTime::UNIX_EPOCH.add(Duration::new(90, 0))
     }
 }

@@ -74,7 +74,7 @@ mod tests {
 
         run_get(&get_args, &mut store, &mut writer, &MockClock::new());
 
-        let expected_output = format!("583612\n");
+        let expected_output = format!("249961\n");
         assert_eq!(String::from_utf8(writer.out).unwrap(), expected_output);
         assert_eq!(writer.err, Vec::new());
     }
@@ -95,7 +95,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn requires_account_name() {
         let arg_vec = vec!["otp", Get.as_str()];
         let get_args = get_cmd_args(CommandType::Get.as_str(), subcommand(), &arg_vec);
@@ -104,12 +103,11 @@ mod tests {
 
         let err = get_args.unwrap_err();
 
-        assert!(
-            err.to_string()
-                .contains("the following required arguments were not provided: account"),
-            "{}",
-            err
-        );
+        assert!(err
+            .to_string()
+            .contains("The following required arguments were not provided:"));
+
+        assert!(err.to_string().contains("--account <NAME>"));
     }
 
     #[test]

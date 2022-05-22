@@ -70,19 +70,18 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn requires_pin() {
-        let mut store = get_mock_store();
-        let mut writer = MockOtpWriter::new();
+        let arg_vec = vec!["otp", Init.as_str()];
+        let init_args = get_cmd_args(CommandType::Init.as_str(), subcommand(), &arg_vec);
 
-        let arg_vec = vec!["otp", Init.as_str(), "-p", PIN];
-        let init_args = get_cmd_args(CommandType::Init.as_str(), subcommand(), &arg_vec).unwrap();
+        assert!(init_args.is_err());
 
-        run_init(&init_args, &mut store, &mut writer);
+        let err = init_args.unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("The following required arguments were not provided:"));
 
-        let expected_output = format!("Pin is required\n");
-        assert_eq!(writer.out, Vec::new());
-        assert_eq!(String::from_utf8(writer.err).unwrap(), expected_output);
+        assert!(err.to_string().contains("--pin <PIN>"));
     }
 
     #[test]

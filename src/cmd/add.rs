@@ -109,7 +109,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn requires_account_name() {
         let arg_vec = vec!["otp", Add.as_str(), "-k", TOTP_KEY];
         let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec);
@@ -118,16 +117,14 @@ mod tests {
 
         let err = add_args.unwrap_err();
 
-        assert!(
-            err.to_string()
-                .contains("the following required arguments were not provided: account"),
-            "{}",
-            err
-        );
+        assert!(err
+            .to_string()
+            .contains("The following required arguments were not provided:"));
+
+        assert!(err.to_string().contains("--account <NAME>"));
     }
 
     #[test]
-    #[should_panic]
     fn requires_key() {
         let arg_vec = vec!["otp", Add.as_str(), "-a", ACCOUNT_NAME_1];
         let add_args = get_cmd_args(Add.as_str(), subcommand(), &arg_vec);
@@ -136,12 +133,11 @@ mod tests {
 
         let err = add_args.unwrap_err();
 
-        assert!(
-            err.to_string()
-                .contains("the following required arguments were not provided: key"),
-            "{}",
-            err
-        );
+        assert!(err
+            .to_string()
+            .contains("The following required arguments were not provided:"));
+
+        assert!(err.to_string().contains("--key <KEY>"));
     }
 
     #[test]

@@ -80,7 +80,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn requires_account_name() {
         let arg_vec = vec!["otp", Delete.as_str()];
         let delete_args = get_cmd_args(CommandType::Delete.as_str(), subcommand(), &arg_vec);
@@ -89,12 +88,11 @@ mod tests {
 
         let err = delete_args.unwrap_err();
 
-        assert!(
-            err.to_string()
-                .contains("the following required arguments were not provided: account"),
-            "{}",
-            err
-        );
+        assert!(err
+            .to_string()
+            .contains("The following required arguments were not provided:"));
+
+        assert!(err.to_string().contains("--account <NAME>"));
     }
 
     #[test]

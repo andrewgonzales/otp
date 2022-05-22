@@ -77,7 +77,7 @@ pub fn get_totp_moving_factor(clock: &impl GetTime) -> u64 {
     periods
 }
 
-pub fn validate_totp(account: &Account, code: u32) -> Result<u32, Error> {
+pub fn validate_totp(account: &Account, code: u32, clock: &impl GetTime) -> Result<u32, Error> {
     let window_size = 3;
     if account.otp_type != OtpType::TOTP {
         return Err(Error::new(
@@ -88,7 +88,7 @@ pub fn validate_totp(account: &Account, code: u32) -> Result<u32, Error> {
 
     println!("entered: {}", code);
 
-    let moving_factor = get_totp_moving_factor(&Clock::new());
+    let moving_factor = get_totp_moving_factor(clock);
     for mf in (moving_factor - window_size)..(moving_factor + window_size) {
         let test_code = get_totp(&account.key, mf);
         println!("Trying {}", test_code);
@@ -126,7 +126,7 @@ mod tests {
         let totp = get_totp(SECRET, moving_factor);
         let account = get_test_account();
 
-        assert!(validate_totp(&account, totp).is_ok());
+        assert!(validate_totp(&account, totp, &Clock::new()).is_ok());
     }
 
     #[test]
@@ -136,8 +136,8 @@ mod tests {
         let totp_b = get_totp(SECRET, moving_factor + 2);
         let account = get_test_account();
 
-        assert!(validate_totp(&account, totp_a).is_ok());
-        assert!(validate_totp(&account, totp_b).is_ok());
+        assert!(validate_totp(&account, totp_a, &Clock::new()).is_ok());
+        assert!(validate_totp(&account, totp_b, &Clock::new()).is_ok());
     }
 
     #[test]
@@ -146,12 +146,12 @@ mod tests {
         let totp = get_totp(SECRET, moving_factor);
         let account = get_test_account();
 
-        assert!(validate_totp(&account, totp).is_err());
+        assert!(validate_totp(&account, totp, &Clock::new()).is_err());
     }
 
     #[test]
     fn gets_moving_factor_from_system_time() {
         let moving_factor = get_totp_moving_factor(&MockClock::new());
-        assert_eq!(moving_factor, 2);
+        assert_eq!(moving_factor, 3);
     }
 }
