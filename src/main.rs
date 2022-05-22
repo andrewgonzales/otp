@@ -1,11 +1,11 @@
 use clap::command;
-use std::io;
+use writer::ReadLine;
 
 use crate::account::{AccountStore, AccountStoreOperations};
 use crate::cmd::CommandType::{Add, Delete, Generate, Get, Init, List, Validate};
 use crate::totp::Clock;
 use crate::utils::validate_pin;
-use crate::writer::OtpWriter;
+use crate::writer::{OtpReader, OtpWriter};
 
 mod account;
 mod cmd;
@@ -68,7 +68,7 @@ fn main() {
         }
         // These subcommands require a pin
         Some(subcommand) => {
-            match check_pin(&account_store) {
+            match check_pin(&account_store, &mut OtpReader::new()) {
                 Ok(_) => match subcommand {
                     (init_cmd, init_args) if init_cmd == Init.as_str() => {
                         cmd::init::run_init(init_args, &mut account_store, &mut writer)
@@ -91,7 +91,10 @@ fn main() {
     };
 }
 
-fn check_pin(account_store: &impl AccountStoreOperations) -> Result<(), String> {
+fn check_pin(
+    account_store: &impl AccountStoreOperations,
+    reader: &mut impl ReadLine,
+) -> Result<(), String> {
     if !account_store.is_initialized() {
         return Err(String::from(
             "No existing pin found. Run the 'init' command.",
@@ -101,9 +104,7 @@ fn check_pin(account_store: &impl AccountStoreOperations) -> Result<(), String> 
             println!("Enter your pin:");
 
             let mut pin = String::new();
-            io::stdin()
-                .read_line(&mut pin)
-                .expect("Failed to read line");
+            reader.read_line(&mut pin);
 
             match validate_pin(pin.trim(), account_store) {
                 Ok(_) => break,
@@ -111,5 +112,35 @@ fn check_pin(account_store: &impl AccountStoreOperations) -> Result<(), String> 
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod main_tests {
+    use super::*;
+    use crate::account::tests::{create_empty_store, get_mock_store};
+    use crate::tests::constants::*;
+    use crate::tests::mocks::*;
+
+    #[test]
+    fn checks_for_account_store_initialized() {
+        let account_store = create_empty_store();
+
+        let result = check_pin(&account_store, &mut MockOtpReader::new(PIN));
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        assert!(err
+            .to_string()
+            .contains("No existing pin found. Run the 'init' command."));
+    }
+
+    #[test]
+    fn verifies_pin() {
+        let account_store = get_mock_store();
+        let mut reader = MockOtpReader::new(PIN);
+
+        let result = check_pin(&account_store, &mut reader);
+        assert!(result.is_ok());
     }
 }

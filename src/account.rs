@@ -343,7 +343,7 @@ impl AccountStoreOperations for MockAccountStore {
 pub mod tests {
     use super::*;
     use crate::crypto::encrypt_pw;
-    use crate::tests::constants::{ACCOUNT_NAME_1, ACCOUNT_NAME_2};
+    use crate::tests::constants::{ACCOUNT_NAME_1, ACCOUNT_NAME_2, PIN};
 
     pub fn create_empty_store() -> AccountStore {
         AccountStore {
@@ -364,7 +364,7 @@ pub mod tests {
             },
             should_save_error: false,
         };
-        let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
+        let hash = encrypt_pw(PIN).expect("Failed to encrypt pin");
         store.set_secrets(&hash);
         store.add(
             String::from(ACCOUNT_NAME_1),

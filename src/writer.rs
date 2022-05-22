@@ -1,4 +1,4 @@
-use std::io::{self, Stderr, Stdout, Write};
+use std::io::{self, Stderr, Stdin, Stdout, Write};
 
 pub struct OtpWriter {
     pub out: Stdout,
@@ -33,4 +33,33 @@ impl OutErr for OtpWriter {
             Err(e) => eprintln!("{}", e),
         }
     }
+}
+
+
+pub struct OtpReader {
+	pub input: Stdin,
+}
+
+impl OtpReader {
+	pub fn new() -> Self {
+		OtpReader {
+			input: io::stdin(),
+		}
+	}
+}
+
+pub trait ReadLine {
+	fn read_line(&mut self, b: &mut String) -> String;
+}
+
+impl ReadLine for OtpReader {
+	fn read_line(&mut self, buffer: &mut String) -> String {
+		match self.input.read_line(buffer) {
+			Ok(_) => buffer.to_string(),
+			Err(e) => {
+				eprintln!("{}", e);
+				String::new()
+			}
+		}
+	}
 }
