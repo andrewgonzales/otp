@@ -52,6 +52,11 @@ fn main() {
 
     let matches = cmd.get_matches();
     match matches.subcommand() {
+        Some((init_cmd, init_args))
+            if init_cmd == Init.as_str() && !account_store.is_initialized() =>
+        {
+            cmd::init::run_init(init_args, &mut account_store, &mut writer)
+        }
         Some((gen_cmd, generate_args)) if gen_cmd == Generate.as_str() => {
             cmd::generate::run_generate(generate_args, &mut writer)
         }
