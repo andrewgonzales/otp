@@ -345,13 +345,14 @@ pub mod tests {
     use crate::crypto::encrypt_pw;
     use crate::tests::constants::{ACCOUNT_NAME_1, ACCOUNT_NAME_2, PIN};
 
-    pub fn create_empty_store() -> AccountStore {
-        AccountStore {
+    pub fn create_empty_store() -> MockAccountStore {
+        MockAccountStore {
             accounts: BTreeMap::new(),
             secrets: Secrets {
                 hash: None,
                 nonce: None,
             },
+            should_save_error: false,
         }
     }
 

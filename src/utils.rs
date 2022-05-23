@@ -48,15 +48,16 @@ pub fn validate_pin(pin: &str, account_store: &impl AccountStoreOperations) -> R
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::account::AccountStore;
-	use crate::account::tests::create_empty_store;
+    use crate::account::tests::create_empty_store;
+    use crate::account::MockAccountStore;
     use crate::crypto::encrypt_pw;
+    use crate::tests::constants::PIN;
 
-    fn get_mock_store(include_hash: bool) -> AccountStore {
+    fn get_mock_store(include_hash: bool) -> MockAccountStore {
         let mut account_store = create_empty_store();
         match include_hash {
             true => {
-                let hash = encrypt_pw("123456").expect("Failed to encrypt pin");
+                let hash = encrypt_pw(PIN).expect("Failed to encrypt pin");
                 account_store.set_secrets(&hash);
                 account_store
             }
